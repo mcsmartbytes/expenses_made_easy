@@ -54,3 +54,7 @@ Screenshot*.jpeg
 *.xlsx
 *.db
 *.zip
+App.tsx
+index.ts
+app.json
+eas.json
