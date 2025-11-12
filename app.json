@@ -1,0 +1,61 @@
+{
+  "expo": {
+    "name": "Expenses Made Easy",
+    "slug": "expenses_made_easy",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": false,
+    "plugins": [
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Allow Expenses Made Easy to use your location to track mileage.",
+          "locationAlwaysPermission": "Allow Expenses Made Easy to use your location in the background for accurate mileage tracking.",
+          "locationWhenInUsePermission": "Allow Expenses Made Easy to use your location to track mileage.",
+          "isIosBackgroundLocationEnabled": true,
+          "isAndroidBackgroundLocationEnabled": true,
+          "isAndroidForegroundServiceEnabled": true
+        }
+      ]
+    ],
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#F0FDFA"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSCameraUsageDescription": "Allow Expenses Made Easy to use your camera to scan receipts.",
+        "NSPhotoLibraryUsageDescription": "Allow Expenses Made Easy to access your photos to upload receipts."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      },
+      "permissions": [
+        "CAMERA",
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_BACKGROUND_LOCATION",
+        "FOREGROUND_SERVICE",
+        "FOREGROUND_SERVICE_LOCATION"
+      ],
+      "edgeToEdgeEnabled": true,
+      "predictiveBackGestureEnabled": false,
+      "package": "com.mcsmart.expensesmadeeasy"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "2664d0c4-c677-4c37-a98c-eff69dce2a3d"
+      }
+    }
+  }
+}
