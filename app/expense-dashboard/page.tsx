@@ -68,15 +68,7 @@ export default function ExpenseDashboard() {
 
       const { data: recent } = await supabase
         .from('expenses')
-        .select(\`
-          id,
-          amount,
-          description,
-          date,
-          vendor,
-          is_business,
-          category:categories(name, icon, color)
-        \`)
+        .select('id, amount, description, date, vendor, is_business, category:categories(name, icon, color)')
         .eq('user_id', user.id)
         .order('date', { ascending: false })
         .limit(5);
@@ -153,7 +145,7 @@ export default function ExpenseDashboard() {
             </div>
             <p className="text-3xl font-bold text-gray-900">${summary.totalThisMonth.toFixed(2)}</p>
             {percentChange !== 0 && (
-              <p className={\`text-sm mt-2 \${percentChange > 0 ? 'text-red-600' : 'text-green-600'}\`}>
+              <p className={`text-sm mt-2 ${percentChange > 0 ? 'text-red-600' : 'text-green-600'}`}>
                 {percentChange > 0 ? '↑' : '↓'} {Math.abs(percentChange).toFixed(1)}% from last month
               </p>
             )}
