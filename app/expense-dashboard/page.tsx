@@ -68,7 +68,7 @@ export default function ExpenseDashboard() {
 
       const { data: recent } = await supabase
         .from('expenses')
-        .select('id, amount, description, date, vendor, is_business, category:categories(name, icon, color)')
+        .select('id, amount, description, date, vendor, is_business, categories(name, icon, color)')
         .eq('user_id', user.id)
         .order('date', { ascending: false })
         .limit(5);
@@ -85,7 +85,12 @@ export default function ExpenseDashboard() {
         personalExpenses,
       });
 
-      setRecentExpenses(recent || []);
+      const formattedExpenses = recent?.map((exp: any) => ({
+        ...exp,
+        category: exp.categories || null
+      })) || [];
+
+      setRecentExpenses(formattedExpenses as Expense[]);
     } catch (error) {
       console.error('Error loading dashboard:', error);
     } finally {
