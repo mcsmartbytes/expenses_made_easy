@@ -37,21 +37,18 @@ export default function ExpensesPage() {
 
       const { data, error } = await supabase
         .from('expenses')
-        .select(`
-          id,
-          amount,
-          description,
-          date,
-          vendor,
-          is_business,
-          category:categories(name, icon, color)
-        `)
+        .select('id, amount, description, date, vendor, is_business, categories(name, icon, color)')
         .eq('user_id', user.id)
         .order('date', { ascending: false });
 
       if (error) throw error;
 
-      setExpenses(data || []);
+      const formattedExpenses = data?.map((exp: any) => ({
+        ...exp,
+        category: exp.categories || null
+      })) || [];
+
+      setExpenses(formattedExpenses as Expense[]);
     } catch (error) {
       console.error('Error loading expenses:', error);
     } finally {
@@ -175,4 +172,3 @@ export default function ExpensesPage() {
     </div>
   );
 }
-ENDOFFILE
