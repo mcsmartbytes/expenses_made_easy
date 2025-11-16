@@ -1,3 +1,7 @@
+#!/bin/bash
+echo "Creating updated expense form with OCR functionality..."
+
+cat > app/expenses/new/page.tsx.new << 'EOFEXPENSE'
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -43,10 +47,8 @@ export default function NewExpensePage() {
 
       const { data } = await supabase.from('categories').select('*').order('name');
 
-      // If no categories exist, create default ones
       if (!data || data.length === 0) {
         await createDefaultCategories(user.id);
-        // Reload categories after creating defaults
         const { data: newData } = await supabase.from('categories').select('*').order('name');
         if (newData) setCategories(newData);
       } else {
@@ -97,14 +99,13 @@ export default function NewExpensePage() {
       if (result.success && result.data) {
         setOcrData(result.data);
 
-        // Auto-fill form fields with OCR data
         setFormData({
           ...formData,
           amount: result.data.amount || formData.amount,
           vendor: result.data.vendor || formData.vendor,
           date: result.data.date || formData.date,
           description: result.data.description || formData.description,
-          notes: result.data.items ? `Items: ${result.data.items.join(', ')}` : formData.notes,
+          notes: result.data.items ? \`Items: \${result.data.items.join(', ')}\` : formData.notes,
         });
 
         alert('✅ Receipt scanned successfully! Review the auto-filled information.');
@@ -130,7 +131,7 @@ export default function NewExpensePage() {
       let receipt_url = null;
       if (receiptFile) {
         const fileExt = receiptFile.name.split('.').pop();
-        const fileName = `${user.id}/${Date.now()}.${fileExt}`;
+        const fileName = \`\${user.id}/\${Date.now()}.\${fileExt}\`;
         const { error: uploadError } = await supabase.storage.from('receipts').upload(fileName, receiptFile);
         if (!uploadError) {
           const { data: { publicUrl } } = supabase.storage.from('receipts').getPublicUrl(fileName);
@@ -227,7 +228,7 @@ export default function NewExpensePage() {
                   capture="environment"
                   onChange={(e) => {
                     setReceiptFile(e.target.files?.[0] || null);
-                    setOcrData(null); // Reset OCR data when new file is selected
+                    setOcrData(null);
                   }}
                   className="w-full px-4 py-2 border rounded-lg file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
                 />
@@ -303,3 +304,11 @@ export default function NewExpensePage() {
     </div>
   );
 }
+EOFEXPENSE
+
+mv app/expenses/new/page.tsx app/expenses/new/page.tsx.old
+mv app/expenses/new/page.tsx.new app/expenses/new/page.tsx
+
+echo "✅ File replaced with OCR version!"
+echo "Now run: git add . && git commit -m 'Add OCR to expense form' && git push origin main"
+
