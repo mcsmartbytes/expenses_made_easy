@@ -35,6 +35,59 @@ export default function NewExpensePage() {
     loadCategories();
   }, []);
 
+  async function compressImage(file: File): Promise<File> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = (event) => {
+        const img = new Image();
+        img.src = event.target?.result as string;
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const MAX_WIDTH = 1920;
+          const MAX_HEIGHT = 1920;
+          let width = img.width;
+          let height = img.height;
+
+          if (width > height) {
+            if (width > MAX_WIDTH) {
+              height *= MAX_WIDTH / width;
+              width = MAX_WIDTH;
+            }
+          } else {
+            if (height > MAX_HEIGHT) {
+              width *= MAX_HEIGHT / height;
+              height = MAX_HEIGHT;
+            }
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx?.drawImage(img, 0, 0, width, height);
+
+          canvas.toBlob(
+            (blob) => {
+              if (blob) {
+                const compressedFile = new File([blob], file.name, {
+                  type: 'image/jpeg',
+                  lastModified: Date.now(),
+                });
+                resolve(compressedFile);
+              } else {
+                reject(new Error('Failed to compress image'));
+              }
+            },
+            'image/jpeg',
+            0.8
+          );
+        };
+        img.onerror = () => reject(new Error('Failed to load image'));
+      };
+      reader.onerror = () => reject(new Error('Failed to read file'));
+    });
+  }
+
   async function loadCategories() {
     setLoadingCategories(true);
     try {
@@ -43,8 +96,10 @@ export default function NewExpensePage() {
 
       const { data } = await supabase.from('categories').select('*').order('name');
 
+      // If no categories exist, create default ones
       if (!data || data.length === 0) {
         await createDefaultCategories(user.id);
+        // Reload categories after creating defaults
         const { data: newData } = await supabase.from('categories').select('*').order('name');
         if (newData) setCategories(newData);
       } else {
@@ -78,30 +133,39 @@ export default function NewExpensePage() {
 
     setScanningReceipt(true);
     try {
+      // Compress image if it's too large
+      let fileToSend = receiptFile;
+      const maxSize = 4 * 1024 * 1024; // 4MB limit for Vercel
+
+      if (receiptFile.size > maxSize) {
+        fileToSend = await compressImage(receiptFile);
+      }
+
       const formDataForOCR = new FormData();
-      formDataForOCR.append('receipt', receiptFile);
+      formDataForOCR.append('receipt', fileToSend);
 
       const response = await fetch('/api/ocr-receipt', {
         method: 'POST',
         body: formDataForOCR,
       });
 
-      if (!response.ok) {
-        throw new Error('Failed to scan receipt');
-      }
-
       const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to scan receipt');
+      }
 
       if (result.success && result.data) {
         setOcrData(result.data);
 
+        // Auto-fill form fields with OCR data
         setFormData({
           ...formData,
           amount: result.data.amount || formData.amount,
           vendor: result.data.vendor || formData.vendor,
           date: result.data.date || formData.date,
           description: result.data.description || formData.description,
-          notes: result.data.items ? \`Items: \${result.data.items.join(', ')}\` : formData.notes,
+          notes: result.data.items ? `Items: ${result.data.items.join(', ')}` : formData.notes,
         });
 
         alert('✅ Receipt scanned successfully! Review the auto-filled information.');
@@ -127,7 +191,7 @@ export default function NewExpensePage() {
       let receipt_url = null;
       if (receiptFile) {
         const fileExt = receiptFile.name.split('.').pop();
-        const fileName = \`\${user.id}/\${Date.now()}.\${fileExt}\`;
+        const fileName = `${user.id}/${Date.now()}.${fileExt}`;
         const { error: uploadError } = await supabase.storage.from('receipts').upload(fileName, receiptFile);
         if (!uploadError) {
           const { data: { publicUrl } } = supabase.storage.from('receipts').getPublicUrl(fileName);
@@ -224,7 +288,7 @@ export default function NewExpensePage() {
                   capture="environment"
                   onChange={(e) => {
                     setReceiptFile(e.target.files?.[0] || null);
-                    setOcrData(null);
+                    setOcrData(null); // Reset OCR data when new file is selected
                   }}
                   className="w-full px-4 py-2 border rounded-lg file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
                 />
