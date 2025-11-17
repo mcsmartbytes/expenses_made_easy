@@ -1,14 +1,48 @@
 'use client';
 
 import Link from 'next/link';
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { supabase } from '@/utils/supabase';
 
 export default function SignupPage() {
+  const router = useRouter();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  async function handleSignup(e: React.FormEvent) {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+
+    try {
+      const { data, error: signupError } = await supabase.auth.signUp({
+        email,
+        password,
+      });
+
+      if (signupError) throw signupError;
+
+      if (data.user) {
+        // Signup successful
+        alert('Account created successfully! You can now sign in.');
+        router.push('/expense-dashboard');
+      }
+    } catch (err: any) {
+      setError(err.message || 'Failed to create account');
+    } finally {
+      setLoading(false);
+    }
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex items-center justify-center px-4">
       <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-8">
         <h1 className="text-3xl font-bold text-gray-900 mb-2">Get Started Free</h1>
         <p className="text-gray-600 mb-6">Create your free account to start tracking expenses</p>
-        
+
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
           <p className="text-sm text-blue-800">
             <strong>Free Plan Includes:</strong>
@@ -20,21 +54,40 @@ export default function SignupPage() {
           </ul>
         </div>
 
-        <div className="space-y-4">
+        {error && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
+            <p className="text-sm text-red-800">{error}</p>
+          </div>
+        )}
+
+        <form onSubmit={handleSignup} className="space-y-4">
           <input
             type="email"
             placeholder="Email address"
-            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+            disabled={loading}
+            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50"
           />
           <input
             type="password"
-            placeholder="Password"
-            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            placeholder="Password (min. 6 characters)"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+            minLength={6}
+            disabled={loading}
+            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50"
           />
-          <button className="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition">
-            Create Free Account
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition disabled:opacity-50"
+          >
+            {loading ? 'Creating Account...' : 'Create Free Account'}
           </button>
-        </div>
+        </form>
 
         <p className="text-center text-sm text-gray-600 mt-6">
           Already have an account?{' '}

@@ -138,6 +138,7 @@ export default function ProfilePage() {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8 space-y-8">
+        {/* User Info Section */}
         <div className="bg-white rounded-lg shadow p-6">
           <h2 className="text-xl font-bold mb-4">Account Information</h2>
           <div className="space-y-3">
@@ -154,6 +155,7 @@ export default function ProfilePage() {
           </div>
         </div>
 
+        {/* Categories Management Section */}
         <div className="bg-white rounded-lg shadow p-6">
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-xl font-bold">Expense Categories</h2>
@@ -165,6 +167,7 @@ export default function ProfilePage() {
             </button>
           </div>
 
+          {/* Add Category Form */}
           {showAddCategory && (
             <form onSubmit={handleAddCategory} className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
               <h3 className="font-semibold mb-3">Create New Category</h3>
@@ -244,6 +247,7 @@ export default function ProfilePage() {
             </form>
           )}
 
+          {/* Categories List */}
           <div className="space-y-3">
             {categories.map((category) => (
               <div
