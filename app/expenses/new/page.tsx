@@ -10,6 +10,9 @@ interface Category {
   name: string;
   color: string;
   icon: string;
+  deduction_percentage?: number;
+  schedule_c_line?: string;
+  tax_classification_type?: string;
 }
 
 export default function NewExpensePage() {
@@ -94,13 +97,13 @@ export default function NewExpensePage() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      const { data } = await supabase.from('categories').select('*').order('name');
+      const { data } = await supabase.from('categories').select('id, name, color, icon, deduction_percentage, schedule_c_line, tax_classification_type').order('name');
 
       // If no categories exist, create default ones
       if (!data || data.length === 0) {
         await createDefaultCategories(user.id);
         // Reload categories after creating defaults
-        const { data: newData } = await supabase.from('categories').select('*').order('name');
+        const { data: newData } = await supabase.from('categories').select('id, name, color, icon, deduction_percentage, schedule_c_line, tax_classification_type').order('name');
         if (newData) setCategories(newData);
       } else {
         setCategories(data);
@@ -250,6 +253,98 @@ export default function NewExpensePage() {
               {loadingCategories && (
                 <p className="text-xs text-blue-600 mt-1">✨ Setting up your categories for the first time...</p>
               )}
+
+              {/* Tax Information Display */}
+              {formData.category_id && (() => {
+                const selectedCategory = categories.find(c => c.id === formData.category_id);
+                if (!selectedCategory) return null;
+
+                const amount = parseFloat(formData.amount) || 0;
+                const deductionPercentage = selectedCategory.deduction_percentage || 0;
+                const deductibleAmount = (amount * deductionPercentage / 100).toFixed(2);
+
+                return (
+                  <div className="mt-3 p-4 bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200 rounded-lg">
+                    <div className="flex items-start gap-3">
+                      <div className="flex-shrink-0 mt-0.5">
+                        <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-sm font-semibold text-gray-900 mb-1">Tax Information</p>
+
+                        <div className="space-y-1">
+                          {deductionPercentage === 100 && (
+                            <div className="flex items-center gap-2">
+                              <span className="px-2 py-0.5 bg-green-100 text-green-800 text-xs rounded-full font-medium">
+                                100% Tax Deductible
+                              </span>
+                              {amount > 0 && (
+                                <span className="text-sm text-gray-700">
+                                  Deductible: <strong className="text-green-700">${deductibleAmount}</strong>
+                                </span>
+                              )}
+                            </div>
+                          )}
+
+                          {deductionPercentage === 50 && (
+                            <div className="flex items-center gap-2">
+                              <span className="px-2 py-0.5 bg-yellow-100 text-yellow-800 text-xs rounded-full font-medium">
+                                50% Tax Deductible
+                              </span>
+                              {amount > 0 && (
+                                <span className="text-sm text-gray-700">
+                                  Deductible: <strong className="text-yellow-700">${deductibleAmount}</strong> of ${amount.toFixed(2)}
+                                </span>
+                              )}
+                            </div>
+                          )}
+
+                          {deductionPercentage === 0 && (
+                            <div>
+                              <span className="px-2 py-0.5 bg-gray-100 text-gray-800 text-xs rounded-full font-medium">
+                                Not Tax Deductible
+                              </span>
+                              <p className="text-xs text-gray-600 mt-1">Personal expenses are not deductible</p>
+                            </div>
+                          )}
+
+                          {deductionPercentage > 0 && deductionPercentage < 100 && deductionPercentage !== 50 && (
+                            <div className="flex items-center gap-2">
+                              <span className="px-2 py-0.5 bg-blue-100 text-blue-800 text-xs rounded-full font-medium">
+                                {deductionPercentage}% Tax Deductible
+                              </span>
+                              {amount > 0 && (
+                                <span className="text-sm text-gray-700">
+                                  Deductible: <strong className="text-blue-700">${deductibleAmount}</strong>
+                                </span>
+                              )}
+                            </div>
+                          )}
+
+                          {selectedCategory.schedule_c_line && (
+                            <div className="flex items-center gap-2 mt-1">
+                              <svg className="w-4 h-4 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                              </svg>
+                              <span className="text-xs text-purple-700 font-medium">
+                                Schedule C Line {selectedCategory.schedule_c_line}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+
+                        {deductionPercentage === 50 && (
+                          <p className="text-xs text-gray-600 mt-2 italic">
+                            💡 IRS limits business meals to 50% deduction
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
 
             <div>
