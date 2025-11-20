@@ -1,10 +1,37 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
+import { supabase } from '@/utils/supabase';
 
 export default function Navigation() {
   const pathname = usePathname();
+  const router = useRouter();
+  const [user, setUser] = useState<any>(null);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    checkUser();
+  }, []);
+
+  async function checkUser() {
+    const { data: { user } } = await supabase.auth.getUser();
+    setUser(user);
+  }
+
+  async function handleLogout() {
+    setLoading(true);
+    try {
+      await supabase.auth.signOut();
+      setUser(null);
+      router.push('/');
+    } catch (error) {
+      console.error('Error signing out:', error);
+    } finally {
+      setLoading(false);
+    }
+  }
 
   const navItems = [
     { href: '/expense-dashboard', label: 'Dashboard', icon: '📊' },
@@ -38,6 +65,25 @@ export default function Navigation() {
                 {item.label}
               </Link>
             ))}
+
+            {user ? (
+              <button
+                onClick={handleLogout}
+                disabled={loading}
+                className="ml-2 px-4 py-2 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-100 transition disabled:opacity-50"
+              >
+                <span className="mr-1">🚪</span>
+                {loading ? 'Logging out...' : 'Logout'}
+              </button>
+            ) : (
+              <Link
+                href="/auth/login"
+                className="ml-2 px-4 py-2 rounded-lg text-sm font-medium bg-blue-600 text-white hover:bg-blue-700 transition"
+              >
+                <span className="mr-1">🔐</span>
+                Login
+              </Link>
+            )}
           </div>
 
           {/* Mobile Menu Button */}
