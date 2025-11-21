@@ -7,7 +7,11 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
 
 export async function POST(req: NextRequest) {
   try {
-    const { plan, interval } = await req.json();
+    const { plan, interval, userId, email } = await req.json();
+
+    if (!userId) {
+      return NextResponse.json({ error: 'User not authenticated' }, { status: 401 });
+    }
 
     const priceIds: Record<string, string> = {
       'premium-month': process.env.STRIPE_PREMIUM_MONTHLY_PRICE_ID!,
@@ -17,7 +21,7 @@ export async function POST(req: NextRequest) {
     };
 
     const priceId = priceIds[`${plan}-${interval}`];
-    
+
     if (!priceId) {
       return NextResponse.json({ error: 'Invalid plan' }, { status: 400 });
     }
@@ -28,8 +32,16 @@ export async function POST(req: NextRequest) {
       line_items: [{ price: priceId, quantity: 1 }],
       success_url: `${process.env.NEXT_PUBLIC_APP_URL}/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/checkout?plan=${plan}`,
+      customer_email: email,
+      metadata: {
+        user_id: userId,
+        plan: plan,
+      },
       subscription_data: {
         trial_period_days: 14,
+        metadata: {
+          user_id: userId,
+        },
       },
     });
 
