@@ -12,6 +12,8 @@ export async function middleware(req: NextRequest) {
     '/expenses',
     '/mileage',
     '/profile',
+    '/budgets',
+    '/receipts',
   ];
 
   // Check if the current path is a protected route
@@ -44,6 +46,8 @@ export const config = {
     '/expenses/:path*',
     '/mileage/:path*',
     '/profile/:path*',
+    '/budgets/:path*',
+    '/receipts/:path*',
     '/auth/login',
     '/auth/signup',
   ],

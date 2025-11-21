@@ -42,10 +42,10 @@ export default function Navigation() {
 
   const navItems = [
     { href: '/expense-dashboard', label: 'Dashboard', icon: '📊' },
-    { href: '/expenses', label: 'All Expenses', icon: '📋' },
-    { href: '/expenses/new', label: 'Add Expense', icon: '➕' },
-    { href: '/mileage', label: 'Mileage Tracker', icon: '🚗' },
-    { href: '/pricing', label: 'Pricing', icon: '💳' },
+    { href: '/expenses', label: 'Expenses', icon: '📋' },
+    { href: '/budgets', label: 'Budgets', icon: '💰' },
+    { href: '/receipts', label: 'Receipts', icon: '🧾' },
+    { href: '/mileage', label: 'Mileage', icon: '🚗' },
   ];
 
   return (
