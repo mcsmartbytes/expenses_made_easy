@@ -21,12 +21,13 @@ export async function middleware(req: NextRequest) {
     req.nextUrl.pathname.startsWith(route)
   );
 
+  // TEMPORARY: Disable auth check for development
   // Redirect to login if accessing protected route without session
-  if (isProtectedRoute && !accessToken && !refreshToken) {
-    const redirectUrl = new URL('/auth/login', req.url);
-    redirectUrl.searchParams.set('redirect', req.nextUrl.pathname);
-    return NextResponse.redirect(redirectUrl);
-  }
+  // if (isProtectedRoute && !accessToken && !refreshToken) {
+  //   const redirectUrl = new URL('/auth/login', req.url);
+  //   redirectUrl.searchParams.set('redirect', req.nextUrl.pathname);
+  //   return NextResponse.redirect(redirectUrl);
+  // }
 
   // Redirect to dashboard if accessing auth pages with active session
   if (
