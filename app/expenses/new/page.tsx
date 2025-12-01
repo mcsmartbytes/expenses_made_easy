@@ -187,6 +187,7 @@ export default function NewExpensePage() {
           vendor: result.data.vendor || formData.vendor,
           date: result.data.date || formData.date,
           description: result.data.description || formData.description,
+          payment_method: result.data.payment_method || formData.payment_method,
           notes: result.data.items ? `Items: ${result.data.items.join(', ')}` : formData.notes,
         });
 
@@ -474,6 +475,46 @@ export default function NewExpensePage() {
                         </button>
                       </div>
                     </div>
+
+                    {/* Tax Breakdown from OCR */}
+                    {ocrData && (ocrData.subtotal || ocrData.tax_amount) && (
+                      <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                        <h4 className="text-sm font-semibold text-blue-900 mb-3 flex items-center gap-2">
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2z" />
+                          </svg>
+                          Receipt Breakdown
+                        </h4>
+                        <div className="space-y-2 text-sm">
+                          {ocrData.subtotal && (
+                            <div className="flex justify-between">
+                              <span className="text-gray-600">Subtotal:</span>
+                              <span className="font-medium">${Number(ocrData.subtotal).toFixed(2)}</span>
+                            </div>
+                          )}
+                          {ocrData.tax_amount !== null && ocrData.tax_amount !== undefined && (
+                            <div className="flex justify-between">
+                              <span className="text-gray-600">
+                                Tax{ocrData.tax_rate ? ` (${ocrData.tax_rate}%)` : ''}:
+                              </span>
+                              <span className="font-medium text-orange-600">
+                                ${Number(ocrData.tax_amount).toFixed(2)}
+                              </span>
+                            </div>
+                          )}
+                          <div className="flex justify-between pt-2 border-t border-blue-200">
+                            <span className="font-semibold text-gray-900">Total:</span>
+                            <span className="font-bold text-blue-600">${Number(ocrData.amount).toFixed(2)}</span>
+                          </div>
+                          {ocrData.payment_method && (
+                            <div className="flex justify-between pt-2 text-xs text-gray-500">
+                              <span>Payment Method:</span>
+                              <span className="capitalize">{ocrData.payment_method}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
                     {!ocrData && (
                       <button
                         type="button"

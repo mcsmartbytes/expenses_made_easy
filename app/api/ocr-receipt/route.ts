@@ -41,13 +41,18 @@ export async function POST(request: NextRequest) {
                 text: `Analyze this receipt image and extract the following information in JSON format:
                 {
                   "vendor": "merchant/vendor name",
-                  "amount": "total amount as a number (no currency symbols)",
+                  "subtotal": "subtotal amount before tax as a number (no currency symbols)",
+                  "tax_amount": "tax amount as a number (no currency symbols), use 0 if no tax shown",
+                  "tax_rate": "tax rate as a percentage number if shown (e.g., 8.25), otherwise null",
+                  "amount": "total amount including tax as a number (no currency symbols)",
                   "date": "date in YYYY-MM-DD format",
                   "description": "brief description of purchase",
-                  "items": ["list of purchased items if visible"]
+                  "items": ["list of purchased items if visible"],
+                  "payment_method": "payment method if visible (credit, debit, cash, etc.), otherwise null"
                 }
 
-                If any field is not clearly visible, use null. Be precise with the amount and date.`
+                If any field is not clearly visible, use null. Be precise with the amounts and date.
+                The subtotal should be the amount before tax, and amount should be the final total.`
               },
               {
                 type: 'image_url',
