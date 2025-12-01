@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { supabase } from '@/utils/supabase';
+import { INDUSTRY_CATEGORIES, IndustryKey } from '@/utils/industryCategories';
 
 interface Category {
   id: string;
@@ -15,7 +16,26 @@ interface Category {
 interface UserProfile {
   email: string;
   created_at: string;
+  industry?: string;
+  business_name?: string;
 }
+
+const INDUSTRIES: { key: IndustryKey; label: string }[] = [
+  { key: 'real_estate', label: 'Real Estate' },
+  { key: 'construction', label: 'Construction' },
+  { key: 'healthcare', label: 'Healthcare' },
+  { key: 'consulting', label: 'Consulting' },
+  { key: 'retail', label: 'Retail' },
+  { key: 'restaurant', label: 'Restaurant / Food Service' },
+  { key: 'technology', label: 'Technology' },
+  { key: 'transportation', label: 'Transportation / Logistics' },
+  { key: 'creative', label: 'Creative / Design' },
+  { key: 'legal', label: 'Legal' },
+  { key: 'accounting', label: 'Accounting / Finance' },
+  { key: 'fitness', label: 'Fitness / Wellness' },
+  { key: 'photography', label: 'Photography / Videography' },
+  { key: 'other', label: 'Other' },
+];
 
 export default function ProfilePage() {
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -23,6 +43,11 @@ export default function ProfilePage() {
   const [loading, setLoading] = useState(true);
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [showAddCategory, setShowAddCategory] = useState(false);
+  const [selectedIndustry, setSelectedIndustry] = useState<IndustryKey | ''>('');
+  const [businessName, setBusinessName] = useState('');
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [creatingCategories, setCreatingCategories] = useState(false);
+  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [newCategory, setNewCategory] = useState({
     name: '',
     icon: '💰',
@@ -42,6 +67,18 @@ export default function ProfilePage() {
         email: user.email || '',
         created_at: user.created_at,
       });
+
+      // Load user profile with industry
+      const { data: userProfile } = await supabase
+        .from('user_profiles')
+        .select('industry, business_name')
+        .eq('user_id', user.id)
+        .single();
+
+      if (userProfile) {
+        setSelectedIndustry((userProfile.industry as IndustryKey) || '');
+        setBusinessName(userProfile.business_name || '');
+      }
     }
     setLoading(false);
   }
@@ -54,20 +91,94 @@ export default function ProfilePage() {
     if (data) setCategories(data);
   }
 
+  async function handleSaveProfile() {
+    setSavingProfile(true);
+    setMessage(null);
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      const userId = user?.id || '00000000-0000-0000-0000-000000000000';
+
+      // Check if profile exists
+      const { data: existing } = await supabase
+        .from('user_profiles')
+        .select('id')
+        .eq('user_id', userId)
+        .single();
+
+      if (existing) {
+        const { error } = await supabase
+          .from('user_profiles')
+          .update({ industry: selectedIndustry, business_name: businessName })
+          .eq('user_id', userId);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from('user_profiles')
+          .insert({ user_id: userId, industry: selectedIndustry, business_name: businessName });
+        if (error) throw error;
+      }
+
+      setMessage({ type: 'success', text: 'Profile saved successfully!' });
+    } catch (error: any) {
+      setMessage({ type: 'error', text: error.message || 'Failed to save profile' });
+    } finally {
+      setSavingProfile(false);
+    }
+  }
+
+  async function handleCreateIndustryCategories() {
+    if (!selectedIndustry) return;
+
+    setCreatingCategories(true);
+    setMessage(null);
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      const userId = user?.id || '00000000-0000-0000-0000-000000000000';
+
+      const industryCategories = INDUSTRY_CATEGORIES[selectedIndustry];
+      if (!industryCategories || industryCategories.length === 0) {
+        setMessage({ type: 'error', text: 'No predefined categories for this industry' });
+        return;
+      }
+
+      const categoriesToInsert = industryCategories.map(cat => ({
+        ...cat,
+        user_id: userId,
+      }));
+
+      const { error } = await supabase.from('categories').insert(categoriesToInsert);
+      if (error) throw error;
+
+      await loadCategories();
+      setMessage({ type: 'success', text: `Added ${industryCategories.length} industry-specific categories!` });
+    } catch (error: any) {
+      setMessage({ type: 'error', text: error.message || 'Failed to create categories' });
+    } finally {
+      setCreatingCategories(false);
+    }
+  }
+
   async function handleAddCategory(e: React.FormEvent) {
     e.preventDefault();
+    setMessage(null);
+
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
+    const userId = user?.id || '00000000-0000-0000-0000-000000000000';
 
     const { error } = await supabase.from('categories').insert({
       ...newCategory,
-      user_id: user.id,
+      user_id: userId,
     });
 
-    if (!error) {
+    if (error) {
+      setMessage({ type: 'error', text: error.message || 'Failed to add category' });
+    } else {
       setShowAddCategory(false);
       setNewCategory({ name: '', icon: '💰', color: '#3B82F6', is_tax_deductible: true });
       loadCategories();
+      setMessage({ type: 'success', text: 'Category added!' });
     }
   }
 
@@ -150,6 +261,79 @@ export default function ProfilePage() {
               <p className="text-gray-900">
                 {profile?.created_at ? new Date(profile.created_at).toLocaleDateString() : 'N/A'}
               </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Message Display */}
+        {message && (
+          <div className={`p-4 rounded-lg ${message.type === 'success' ? 'bg-green-50 border border-green-200 text-green-800' : 'bg-red-50 border border-red-200 text-red-800'}`}>
+            {message.text}
+          </div>
+        )}
+
+        {/* Business Profile Section */}
+        <div className="bg-white rounded-lg shadow p-6">
+          <h2 className="text-xl font-bold mb-4">Business Profile</h2>
+          <p className="text-gray-600 mb-6">Select your industry to get relevant expense categories pre-loaded.</p>
+
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Business Name</label>
+              <input
+                type="text"
+                value={businessName}
+                onChange={(e) => setBusinessName(e.target.value)}
+                placeholder="Your business name"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Industry</label>
+              <select
+                value={selectedIndustry}
+                onChange={(e) => setSelectedIndustry(e.target.value as IndustryKey)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="">Select your industry...</option>
+                {INDUSTRIES.map((ind) => (
+                  <option key={ind.key} value={ind.key}>{ind.label}</option>
+                ))}
+              </select>
+            </div>
+
+            {selectedIndustry && INDUSTRY_CATEGORIES[selectedIndustry]?.length > 0 && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <h4 className="font-medium text-blue-900 mb-2">Available categories for {INDUSTRIES.find(i => i.key === selectedIndustry)?.label}:</h4>
+                <div className="flex flex-wrap gap-2">
+                  {INDUSTRY_CATEGORIES[selectedIndustry].map((cat, idx) => (
+                    <span key={idx} className="inline-flex items-center px-3 py-1 rounded-full text-sm" style={{ backgroundColor: cat.color + '20', color: cat.color }}>
+                      {cat.icon} {cat.name}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="flex gap-3 pt-2">
+              <button
+                onClick={handleSaveProfile}
+                disabled={savingProfile}
+                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-semibold disabled:opacity-50"
+              >
+                {savingProfile ? 'Saving...' : 'Save Profile'}
+              </button>
+
+              {selectedIndustry && INDUSTRY_CATEGORIES[selectedIndustry]?.length > 0 && (
+                <button
+                  onClick={handleCreateIndustryCategories}
+                  disabled={creatingCategories}
+                  className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition font-semibold disabled:opacity-50"
+                >
+                  {creatingCategories ? 'Creating...' : `Add ${INDUSTRY_CATEGORIES[selectedIndustry].length} Industry Categories`}
+                </button>
+              )}
             </div>
           </div>
         </div>
