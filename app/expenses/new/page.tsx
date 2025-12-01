@@ -106,13 +106,14 @@ export default function NewExpensePage() {
     setLoadingCategories(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
 
+      // TEMPORARY: Allow loading categories without auth
       const { data } = await supabase.from('categories').select('id, name, color, icon, deduction_percentage, schedule_c_line, tax_classification_type').order('name');
 
       // If no categories exist, create default ones
       if (!data || data.length === 0) {
-        await createDefaultCategories(user.id);
+        const demoUserId = user?.id || '00000000-0000-0000-0000-000000000000'; // Use demo user if no auth
+        await createDefaultCategories(demoUserId);
         // Reload categories after creating defaults
         const { data: newData } = await supabase.from('categories').select('id, name, color, icon, deduction_percentage, schedule_c_line, tax_classification_type').order('name');
         if (newData) setCategories(newData);
