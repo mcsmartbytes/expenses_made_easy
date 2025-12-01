@@ -35,7 +35,13 @@ export default function SignInPage() {
 
       if (data?.session) {
         console.log('✅ Session created, redirecting to dashboard');
-        router.push('/expense-dashboard');
+        console.log('💾 Session stored in localStorage');
+
+        // Give the session time to persist to localStorage
+        await new Promise(resolve => setTimeout(resolve, 100));
+
+        // Use window.location for a full page reload to ensure session is loaded
+        window.location.href = '/expense-dashboard';
       } else {
         console.log('⚠️ No session returned');
         setMessage('Check your email to confirm your account, then sign in.');

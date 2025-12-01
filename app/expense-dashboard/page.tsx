@@ -48,12 +48,22 @@ export default function ExpenseDashboard() {
 
   async function loadDashboard() {
     try {
+      console.log('📊 Loading dashboard...');
+
+      // First check if there's a session
+      const { data: { session } } = await supabase.auth.getSession();
+      console.log('🔑 Session check:', session ? '✅ Found' : '❌ Not found');
+
       const { data: { user } } = await supabase.auth.getUser();
+      console.log('👤 User check:', user ? `✅ ${user.email}` : '❌ Not found');
 
       if (!user) {
+        console.log('🚫 No user, redirecting to signin');
         window.location.href = '/auth/signin';
         return;
       }
+
+      console.log('✅ User authenticated, loading data...');
 
       const now = new Date();
       const firstDayThisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
