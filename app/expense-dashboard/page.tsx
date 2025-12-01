@@ -57,11 +57,10 @@ export default function ExpenseDashboard() {
       const { data: { user } } = await supabase.auth.getUser();
       console.log('👤 User check:', user ? `✅ ${user.email}` : '❌ Not found');
 
+      // TEMPORARY: Skip auth check for development
       if (!user) {
-        console.log('🚫 No user, waiting 5 seconds before redirect...');
-        await new Promise(resolve => setTimeout(resolve, 5000));
-        console.log('🔄 Redirecting to signin now...');
-        window.location.href = '/auth/signin';
+        console.log('⚠️ No user found, but continuing anyway (auth disabled for dev)');
+        setLoading(false);
         return;
       }
 
