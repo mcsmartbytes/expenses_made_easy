@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { supabase } from '@/utils/supabase';
+import { canAddExpense } from '@/utils/subscription';
 
 interface Category {
   id: string;
@@ -23,6 +24,7 @@ export default function NewExpensePage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
   const [ocrData, setOcrData] = useState<any>(null);
+  const [subscriptionLimit, setSubscriptionLimit] = useState<{ allowed: boolean; message?: string; remaining?: number } | null>(null);
   const [formData, setFormData] = useState({
     amount: '',
     description: '',
@@ -36,7 +38,16 @@ export default function NewExpensePage() {
 
   useEffect(() => {
     loadCategories();
+    checkSubscriptionLimit();
   }, []);
+
+  async function checkSubscriptionLimit() {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      const result = await canAddExpense(user.id);
+      setSubscriptionLimit(result);
+    }
+  }
 
   async function compressImage(file: File): Promise<File> {
     return new Promise((resolve, reject) => {
@@ -95,13 +106,14 @@ export default function NewExpensePage() {
     setLoadingCategories(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
 
+      // TEMPORARY: Allow loading categories without auth
       const { data } = await supabase.from('categories').select('id, name, color, icon, deduction_percentage, schedule_c_line, tax_classification_type').order('name');
 
       // If no categories exist, create default ones
       if (!data || data.length === 0) {
-        await createDefaultCategories(user.id);
+        const demoUserId = user?.id || '00000000-0000-0000-0000-000000000000'; // Use demo user if no auth
+        await createDefaultCategories(demoUserId);
         // Reload categories after creating defaults
         const { data: newData } = await supabase.from('categories').select('id, name, color, icon, deduction_percentage, schedule_c_line, tax_classification_type').order('name');
         if (newData) setCategories(newData);
@@ -191,6 +203,14 @@ export default function NewExpensePage() {
         return;
       }
 
+      // Check subscription limit before adding
+      const limitCheck = await canAddExpense(user.id);
+      if (!limitCheck.allowed) {
+        alert(limitCheck.message || 'You have reached your expense limit. Please upgrade to continue.');
+        setLoading(false);
+        return;
+      }
+
       let receipt_url = null;
       if (receiptFile) {
         const fileExt = receiptFile.name.split('.').pop();
@@ -221,6 +241,44 @@ export default function NewExpensePage() {
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-3xl mx-auto px-4">
+        {/* Subscription Limit Warning */}
+        {subscriptionLimit && !subscriptionLimit.allowed && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+            <div className="flex items-start gap-3">
+              <span className="text-2xl">⚠️</span>
+              <div>
+                <h3 className="font-semibold text-red-800">Expense Limit Reached</h3>
+                <p className="text-sm text-red-700 mt-1">{subscriptionLimit.message}</p>
+                <Link
+                  href="/pricing"
+                  className="inline-block mt-3 px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-semibold hover:bg-red-700 transition"
+                >
+                  Upgrade to Premium
+                </Link>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {subscriptionLimit && subscriptionLimit.allowed && subscriptionLimit.remaining !== undefined && subscriptionLimit.remaining <= 10 && (
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
+            <div className="flex items-start gap-3">
+              <span className="text-2xl">💡</span>
+              <div>
+                <h3 className="font-semibold text-yellow-800">Running Low on Free Expenses</h3>
+                <p className="text-sm text-yellow-700 mt-1">
+                  You have {subscriptionLimit.remaining} expense{subscriptionLimit.remaining !== 1 ? 's' : ''} remaining this month on the free plan.
+                </p>
+                <Link
+                  href="/pricing"
+                  className="inline-block mt-2 text-sm text-yellow-800 font-semibold hover:text-yellow-900 underline"
+                >
+                  Upgrade for unlimited expenses →
+                </Link>
+              </div>
+            </div>
+          </div>
+        )}
         <div className="mb-6">
           <Link href="/expense-dashboard" className="text-blue-600 hover:text-blue-700">← Back to Dashboard</Link>
         </div>
