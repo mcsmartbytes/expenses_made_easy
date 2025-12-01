@@ -105,42 +105,56 @@ export default function NewExpensePage() {
   async function loadCategories() {
     setLoadingCategories(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      // Use API endpoint to bypass RLS
+      const response = await fetch('/api/categories');
+      const result = await response.json();
 
-      // TEMPORARY: Allow loading categories without auth
-      const { data } = await supabase.from('categories').select('id, name, color, icon, deduction_percentage, schedule_c_line, tax_classification_type').order('name');
-
-      // If no categories exist, create default ones
-      if (!data || data.length === 0) {
-        const demoUserId = user?.id || '00000000-0000-0000-0000-000000000000'; // Use demo user if no auth
-        await createDefaultCategories(demoUserId);
-        // Reload categories after creating defaults
-        const { data: newData } = await supabase.from('categories').select('id, name, color, icon, deduction_percentage, schedule_c_line, tax_classification_type').order('name');
-        if (newData) setCategories(newData);
+      if (result.success && result.data && result.data.length > 0) {
+        setCategories(result.data);
       } else {
-        setCategories(data);
+        // If no categories exist, create default ones via API
+        await createDefaultCategories();
+        // Reload categories after creating defaults
+        const retryResponse = await fetch('/api/categories');
+        const retryResult = await retryResponse.json();
+        if (retryResult.success && retryResult.data) {
+          setCategories(retryResult.data);
+        }
       }
+    } catch (error) {
+      console.error('Error loading categories:', error);
     } finally {
       setLoadingCategories(false);
     }
   }
 
-  async function createDefaultCategories(userId: string) {
+  async function createDefaultCategories() {
     const defaultCategories = [
-      { user_id: userId, name: 'Meals & Entertainment', color: '#EF4444', icon: '🍽️', is_tax_deductible: true },
-      { user_id: userId, name: 'Travel', color: '#3B82F6', icon: '✈️', is_tax_deductible: true },
-      { user_id: userId, name: 'Office Supplies', color: '#8B5CF6', icon: '📎', is_tax_deductible: true },
-      { user_id: userId, name: 'Vehicle', color: '#10B981', icon: '🚗', is_tax_deductible: true },
-      { user_id: userId, name: 'Utilities', color: '#F59E0B', icon: '💡', is_tax_deductible: true },
-      { user_id: userId, name: 'Marketing', color: '#EC4899', icon: '📢', is_tax_deductible: true },
-      { user_id: userId, name: 'Professional Services', color: '#6366F1', icon: '👔', is_tax_deductible: true },
-      { user_id: userId, name: 'Insurance', color: '#14B8A6', icon: '🛡️', is_tax_deductible: true },
-      { user_id: userId, name: 'Rent', color: '#F97316', icon: '🏢', is_tax_deductible: true },
-      { user_id: userId, name: 'Personal', color: '#64748B', icon: '👤', is_tax_deductible: false },
+      { name: 'Meals & Entertainment', color: '#EF4444', icon: '🍽️', is_tax_deductible: true },
+      { name: 'Travel', color: '#3B82F6', icon: '✈️', is_tax_deductible: true },
+      { name: 'Office Supplies', color: '#8B5CF6', icon: '📎', is_tax_deductible: true },
+      { name: 'Vehicle', color: '#10B981', icon: '🚗', is_tax_deductible: true },
+      { name: 'Utilities', color: '#F59E0B', icon: '💡', is_tax_deductible: true },
+      { name: 'Marketing', color: '#EC4899', icon: '📢', is_tax_deductible: true },
+      { name: 'Professional Services', color: '#6366F1', icon: '👔', is_tax_deductible: true },
+      { name: 'Insurance', color: '#14B8A6', icon: '🛡️', is_tax_deductible: true },
+      { name: 'Rent', color: '#F97316', icon: '🏢', is_tax_deductible: true },
+      { name: 'Personal', color: '#64748B', icon: '👤', is_tax_deductible: false },
     ];
 
-    const { error } = await supabase.from('categories').insert(defaultCategories);
-    if (error) console.error('Error creating default categories:', error);
+    try {
+      const response = await fetch('/api/categories', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ categories: defaultCategories }),
+      });
+      const result = await response.json();
+      if (!result.success) {
+        console.error('Error creating default categories:', result.error);
+      }
+    } catch (error) {
+      console.error('Error creating default categories:', error);
+    }
   }
 
   async function handleScanReceipt() {
