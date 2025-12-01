@@ -110,17 +110,10 @@ export default function NewExpensePage() {
       const result = await response.json();
 
       if (result.success && result.data && result.data.length > 0) {
+        // Just use what exists - don't auto-create defaults anymore
         setCategories(result.data);
-      } else {
-        // If no categories exist, create default ones via API
-        await createDefaultCategories();
-        // Reload categories after creating defaults
-        const retryResponse = await fetch('/api/categories');
-        const retryResult = await retryResponse.json();
-        if (retryResult.success && retryResult.data) {
-          setCategories(retryResult.data);
-        }
       }
+      // If no categories, user should create them via Profile page
     } catch (error) {
       console.error('Error loading categories:', error);
     } finally {
