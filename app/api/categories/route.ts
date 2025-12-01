@@ -24,7 +24,7 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { categories } = body;
+    const { categories, user_id } = body;
 
     if (!categories || !Array.isArray(categories) || categories.length === 0) {
       return NextResponse.json(
@@ -33,15 +33,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Use a demo user ID if not provided
-    const categoriesWithUser = categories.map((cat: any) => ({
-      ...cat,
-      user_id: cat.user_id || '00000000-0000-0000-0000-000000000000',
-    }));
+    // Only include user_id if provided (for authenticated users)
+    // Otherwise, omit it to allow NULL (requires DB column to be nullable)
+    const categoriesToInsert = categories.map((cat: any) => {
+      const { user_id: catUserId, ...rest } = cat;
+      const finalUserId = catUserId || user_id;
+      if (finalUserId) {
+        return { ...rest, user_id: finalUserId };
+      }
+      return rest; // No user_id - will be NULL if column allows
+    });
 
     const { data, error } = await supabaseAdmin
       .from('categories')
-      .insert(categoriesWithUser)
+      .insert(categoriesToInsert)
       .select();
 
     if (error) throw error;
