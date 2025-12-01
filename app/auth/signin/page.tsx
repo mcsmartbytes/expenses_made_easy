@@ -37,10 +37,12 @@ export default function SignInPage() {
         console.log('✅ Session created, redirecting to dashboard');
         console.log('💾 Session stored in localStorage');
 
-        // Give the session time to persist to localStorage
-        await new Promise(resolve => setTimeout(resolve, 100));
+        // Wait 5 seconds so you can see any errors
+        console.log('⏰ Waiting 5 seconds before redirect...');
+        await new Promise(resolve => setTimeout(resolve, 5000));
 
         // Use window.location for a full page reload to ensure session is loaded
+        console.log('🔄 Redirecting now...');
         window.location.href = '/expense-dashboard';
       } else {
         console.log('⚠️ No session returned');

@@ -58,7 +58,9 @@ export default function ExpenseDashboard() {
       console.log('👤 User check:', user ? `✅ ${user.email}` : '❌ Not found');
 
       if (!user) {
-        console.log('🚫 No user, redirecting to signin');
+        console.log('🚫 No user, waiting 5 seconds before redirect...');
+        await new Promise(resolve => setTimeout(resolve, 5000));
+        console.log('🔄 Redirecting to signin now...');
         window.location.href = '/auth/signin';
         return;
       }
