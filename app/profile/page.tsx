@@ -84,11 +84,15 @@ export default function ProfilePage() {
   }
 
   async function loadCategories() {
-    const { data } = await supabase
-      .from('categories')
-      .select('*')
-      .order('name');
-    if (data) setCategories(data);
+    try {
+      const response = await fetch('/api/categories');
+      const result = await response.json();
+      if (result.success && result.data) {
+        setCategories(result.data);
+      }
+    } catch (error) {
+      console.error('Error loading categories:', error);
+    }
   }
 
   async function handleSaveProfile() {
@@ -134,22 +138,20 @@ export default function ProfilePage() {
     setMessage(null);
 
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      const userId = user?.id || '00000000-0000-0000-0000-000000000000';
-
       const industryCategories = INDUSTRY_CATEGORIES[selectedIndustry];
       if (!industryCategories || industryCategories.length === 0) {
         setMessage({ type: 'error', text: 'No predefined categories for this industry' });
         return;
       }
 
-      const categoriesToInsert = industryCategories.map(cat => ({
-        ...cat,
-        user_id: userId,
-      }));
+      const response = await fetch('/api/categories', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ categories: industryCategories }),
+      });
 
-      const { error } = await supabase.from('categories').insert(categoriesToInsert);
-      if (error) throw error;
+      const result = await response.json();
+      if (!result.success) throw new Error(result.error);
 
       await loadCategories();
       setMessage({ type: 'success', text: `Added ${industryCategories.length} industry-specific categories!` });
@@ -164,51 +166,63 @@ export default function ProfilePage() {
     e.preventDefault();
     setMessage(null);
 
-    const { data: { user } } = await supabase.auth.getUser();
-    const userId = user?.id || '00000000-0000-0000-0000-000000000000';
+    try {
+      const response = await fetch('/api/categories', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ categories: [newCategory] }),
+      });
 
-    const { error } = await supabase.from('categories').insert({
-      ...newCategory,
-      user_id: userId,
-    });
+      const result = await response.json();
+      if (!result.success) throw new Error(result.error);
 
-    if (error) {
-      setMessage({ type: 'error', text: error.message || 'Failed to add category' });
-    } else {
       setShowAddCategory(false);
       setNewCategory({ name: '', icon: '💰', color: '#3B82F6', is_tax_deductible: true });
       loadCategories();
       setMessage({ type: 'success', text: 'Category added!' });
+    } catch (error: any) {
+      setMessage({ type: 'error', text: error.message || 'Failed to add category' });
     }
   }
 
   async function handleUpdateCategory(category: Category) {
-    const { error } = await supabase
-      .from('categories')
-      .update({
-        name: category.name,
-        icon: category.icon,
-        color: category.color,
-        is_tax_deductible: category.is_tax_deductible,
-      })
-      .eq('id', category.id);
+    try {
+      const response = await fetch('/api/categories', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: category.id,
+          name: category.name,
+          icon: category.icon,
+          color: category.color,
+          is_tax_deductible: category.is_tax_deductible,
+        }),
+      });
 
-    if (!error) {
-      setEditingCategory(null);
-      loadCategories();
+      const result = await response.json();
+      if (result.success) {
+        setEditingCategory(null);
+        loadCategories();
+      }
+    } catch (error) {
+      console.error('Error updating category:', error);
     }
   }
 
   async function handleDeleteCategory(id: string) {
     if (!confirm('Delete this category? Expenses using it will not be deleted.')) return;
 
-    const { error } = await supabase
-      .from('categories')
-      .delete()
-      .eq('id', id);
+    try {
+      const response = await fetch(`/api/categories?id=${id}`, {
+        method: 'DELETE',
+      });
 
-    if (!error) {
-      loadCategories();
+      const result = await response.json();
+      if (result.success) {
+        loadCategories();
+      }
+    } catch (error) {
+      console.error('Error deleting category:', error);
     }
   }
 
