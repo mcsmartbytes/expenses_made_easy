@@ -14,6 +14,7 @@ interface Expense {
   is_business: boolean;
   payment_method?: string;
   notes?: string;
+  category_id?: string;
   category: {
     name: string;
     icon: string;
@@ -21,15 +22,50 @@ interface Expense {
   } | null;
 }
 
+interface Category {
+  id: string;
+  name: string;
+  color: string;
+  icon: string;
+}
+
 export default function ExpensesPage() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterType, setFilterType] = useState<'all' | 'business' | 'personal'>('all');
   const [dateRange, setDateRange] = useState<'all' | 'month' | 'quarter' | 'year'>('all');
 
+  // Edit modal state
+  const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
+  const [editFormData, setEditFormData] = useState({
+    amount: '',
+    description: '',
+    category_id: '',
+    date: '',
+    vendor: '',
+    payment_method: 'credit',
+    is_business: true,
+    notes: '',
+  });
+  const [saving, setSaving] = useState(false);
+
   useEffect(() => {
     loadExpenses();
+    loadCategories();
   }, []);
+
+  async function loadCategories() {
+    try {
+      const response = await fetch('/api/categories');
+      const result = await response.json();
+      if (result.success && result.data) {
+        setCategories(result.data);
+      }
+    } catch (error) {
+      console.error('Error loading categories:', error);
+    }
+  }
 
   async function loadExpenses() {
     try {
@@ -42,7 +78,7 @@ export default function ExpensesPage() {
 
       const { data, error } = await supabase
         .from('expenses')
-        .select('id, amount, description, date, vendor, is_business, payment_method, notes, categories(name, icon, color)')
+        .select('id, amount, description, date, vendor, is_business, payment_method, notes, category_id, categories(name, icon, color)')
         .eq('user_id', user.id)
         .order('date', { ascending: false });
 
@@ -71,6 +107,65 @@ export default function ExpensesPage() {
 
     if (!error) {
       loadExpenses();
+    }
+  }
+
+  function openEditModal(expense: Expense) {
+    setEditingExpense(expense);
+    setEditFormData({
+      amount: expense.amount.toString(),
+      description: expense.description,
+      category_id: expense.category_id || '',
+      date: expense.date,
+      vendor: expense.vendor || '',
+      payment_method: expense.payment_method || 'credit',
+      is_business: expense.is_business,
+      notes: expense.notes || '',
+    });
+  }
+
+  function closeEditModal() {
+    setEditingExpense(null);
+    setEditFormData({
+      amount: '',
+      description: '',
+      category_id: '',
+      date: '',
+      vendor: '',
+      payment_method: 'credit',
+      is_business: true,
+      notes: '',
+    });
+  }
+
+  async function handleEditSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!editingExpense) return;
+
+    setSaving(true);
+    try {
+      const { error } = await supabase
+        .from('expenses')
+        .update({
+          amount: parseFloat(editFormData.amount),
+          description: editFormData.description,
+          category_id: editFormData.category_id || null,
+          date: editFormData.date,
+          vendor: editFormData.vendor || null,
+          payment_method: editFormData.payment_method,
+          is_business: editFormData.is_business,
+          notes: editFormData.notes || null,
+        })
+        .eq('id', editingExpense.id);
+
+      if (error) throw error;
+
+      closeEditModal();
+      loadExpenses();
+    } catch (error: any) {
+      alert('Failed to update expense: ' + (error.message || 'Unknown error'));
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -277,7 +372,13 @@ export default function ExpensesPage() {
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-right font-medium text-gray-900">
                         ${expense.amount.toFixed(2)}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-right">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-right space-x-3">
+                        <button
+                          onClick={() => openEditModal(expense)}
+                          className="text-blue-600 hover:text-blue-900"
+                        >
+                          Edit
+                        </button>
                         <button onClick={() => deleteExpense(expense.id)} className="text-red-600 hover:text-red-900">
                           Delete
                         </button>
@@ -296,10 +397,147 @@ export default function ExpensesPage() {
             {filterType !== 'all' || dateRange !== 'all' ? ' (filtered)' : ''}
           </p>
           <Link href="/expense-dashboard" className="text-blue-600 hover:text-blue-700 font-semibold">
-            ← Back to Dashboard
+            Back to Dashboard
           </Link>
         </div>
       </main>
+
+      {/* Edit Modal */}
+      {editingExpense && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-xl font-bold text-gray-900">Edit Expense</h2>
+                <button
+                  onClick={closeEditModal}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              <form onSubmit={handleEditSubmit} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium mb-1">Amount *</label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-2.5">$</span>
+                    <input
+                      type="number"
+                      step="0.01"
+                      required
+                      value={editFormData.amount}
+                      onChange={(e) => setEditFormData({ ...editFormData, amount: e.target.value })}
+                      className="w-full pl-8 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-1">Description *</label>
+                  <input
+                    type="text"
+                    required
+                    value={editFormData.description}
+                    onChange={(e) => setEditFormData({ ...editFormData, description: e.target.value })}
+                    className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-1">Category</label>
+                  <select
+                    value={editFormData.category_id}
+                    onChange={(e) => setEditFormData({ ...editFormData, category_id: e.target.value })}
+                    className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">Select a category</option>
+                    {categories.map((cat) => (
+                      <option key={cat.id} value={cat.id}>{cat.icon} {cat.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-1">Date *</label>
+                  <input
+                    type="date"
+                    required
+                    value={editFormData.date}
+                    onChange={(e) => setEditFormData({ ...editFormData, date: e.target.value })}
+                    className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-1">Vendor</label>
+                  <input
+                    type="text"
+                    value={editFormData.vendor}
+                    onChange={(e) => setEditFormData({ ...editFormData, vendor: e.target.value })}
+                    className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-1">Payment Method</label>
+                  <select
+                    value={editFormData.payment_method}
+                    onChange={(e) => setEditFormData({ ...editFormData, payment_method: e.target.value })}
+                    className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="credit">Credit Card</option>
+                    <option value="debit">Debit Card</option>
+                    <option value="cash">Cash</option>
+                    <option value="bank_transfer">Bank Transfer</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="flex items-center gap-3">
+                    <input
+                      type="checkbox"
+                      checked={editFormData.is_business}
+                      onChange={(e) => setEditFormData({ ...editFormData, is_business: e.target.checked })}
+                      className="w-5 h-5 text-blue-600 rounded"
+                    />
+                    <span className="text-sm font-medium">This is a business expense</span>
+                  </label>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-1">Notes</label>
+                  <textarea
+                    value={editFormData.notes}
+                    onChange={(e) => setEditFormData({ ...editFormData, notes: e.target.value })}
+                    rows={3}
+                    className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                <div className="flex gap-3 pt-4">
+                  <button
+                    type="submit"
+                    disabled={saving}
+                    className="flex-1 bg-blue-600 text-white py-2 rounded-lg font-semibold hover:bg-blue-700 disabled:opacity-50"
+                  >
+                    {saving ? 'Saving...' : 'Save Changes'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={closeEditModal}
+                    className="flex-1 bg-gray-200 text-gray-700 py-2 rounded-lg font-semibold hover:bg-gray-300"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

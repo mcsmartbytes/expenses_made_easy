@@ -46,6 +46,8 @@ export default function Navigation() {
     { href: '/budgets', label: 'Budgets', icon: '💰' },
     { href: '/receipts', label: 'Receipts', icon: '🧾' },
     { href: '/mileage', label: 'Mileage', icon: '🚗' },
+    { href: '/reports', label: 'Reports', icon: '📈' },
+    { href: '/profile', label: 'Profile', icon: '👤' },
   ];
 
   return (

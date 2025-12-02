@@ -19,6 +19,7 @@ interface MileageTrip {
 
 export default function MileagePage() {
   const [trips, setTrips] = useState<MileageTrip[]>([]);
+  const [filteredTrips, setFilteredTrips] = useState<MileageTrip[]>([]);
   const [isTracking, setIsTracking] = useState(false);
   const [currentSpeed, setCurrentSpeed] = useState(0);
   const [distance, setDistance] = useState(0);
@@ -26,7 +27,11 @@ export default function MileagePage() {
   const [purpose, setPurpose] = useState('');
   const [isBusiness, setIsBusiness] = useState(true);
   const [rate, setRate] = useState(0.67);
-  
+
+  // Filters
+  const [typeFilter, setTypeFilter] = useState<'all' | 'business' | 'personal'>('all');
+  const [dateFilter, setDateFilter] = useState<'all' | 'month' | 'quarter' | 'year'>('all');
+
   const watchIdRef = useRef<number | null>(null);
   const lastPositionRef = useRef<GeolocationPosition | null>(null);
   const autoStartTriggered = useRef(false);
@@ -42,6 +47,10 @@ export default function MileagePage() {
     };
   }, []);
 
+  useEffect(() => {
+    applyFilters();
+  }, [trips, typeFilter, dateFilter]);
+
   async function loadTrips() {
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -51,14 +60,46 @@ export default function MileagePage() {
         .from('mileage')
         .select('*')
         .eq('user_id', user.id)
-        .order('date', { ascending: false })
-        .limit(10);
+        .order('date', { ascending: false });
 
       setTrips(data || []);
     } catch (error) {
       console.error('Error loading trips:', error);
     }
   }
+
+  function applyFilters() {
+    let filtered = [...trips];
+
+    // Type filter
+    if (typeFilter === 'business') {
+      filtered = filtered.filter(t => t.is_business);
+    } else if (typeFilter === 'personal') {
+      filtered = filtered.filter(t => !t.is_business);
+    }
+
+    // Date filter
+    const now = new Date();
+    if (dateFilter === 'month') {
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      filtered = filtered.filter(t => new Date(t.date) >= startOfMonth);
+    } else if (dateFilter === 'quarter') {
+      const quarter = Math.floor(now.getMonth() / 3);
+      const startOfQuarter = new Date(now.getFullYear(), quarter * 3, 1);
+      filtered = filtered.filter(t => new Date(t.date) >= startOfQuarter);
+    } else if (dateFilter === 'year') {
+      const startOfYear = new Date(now.getFullYear(), 0, 1);
+      filtered = filtered.filter(t => new Date(t.date) >= startOfYear);
+    }
+
+    setFilteredTrips(filtered);
+  }
+
+  // Calculate summary stats
+  const totalMiles = filteredTrips.reduce((sum, t) => sum + t.distance, 0);
+  const totalAmount = filteredTrips.reduce((sum, t) => sum + t.amount, 0);
+  const businessMiles = filteredTrips.filter(t => t.is_business).reduce((sum, t) => sum + t.distance, 0);
+  const personalMiles = filteredTrips.filter(t => !t.is_business).reduce((sum, t) => sum + t.distance, 0);
 
   function startSpeedMonitoring() {
     if (!navigator.geolocation) {
@@ -197,6 +238,32 @@ export default function MileagePage() {
     }
   }
 
+  function exportToCSV() {
+    if (filteredTrips.length === 0) {
+      alert('No trips to export');
+      return;
+    }
+
+    const headers = ['Date', 'Distance (miles)', 'Purpose', 'Type', 'Rate', 'Amount', 'Start Location', 'End Location'];
+    const rows = filteredTrips.map(trip => [
+      trip.date,
+      trip.distance.toFixed(2),
+      `"${trip.purpose || 'No purpose'}"`,
+      trip.is_business ? 'Business' : 'Personal',
+      trip.rate.toFixed(2),
+      trip.amount.toFixed(2),
+      `"${trip.start_location || ''}"`,
+      `"${trip.end_location || ''}"`,
+    ]);
+
+    const csvContent = [headers.join(','), ...rows.map(row => row.join(','))].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `mileage_${new Date().toISOString().split('T')[0]}.csv`;
+    link.click();
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       <Navigation />
@@ -223,7 +290,7 @@ export default function MileagePage() {
             <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="font-semibold text-green-900">🚗 Tracking Active</p>
+                  <p className="font-semibold text-green-900">Tracking Active</p>
                   <p className="text-green-700">Distance: {distance.toFixed(2)} miles</p>
                   <p className="text-sm text-green-600">From: {startLocation || 'Loading...'}</p>
                 </div>
@@ -266,32 +333,96 @@ export default function MileagePage() {
           )}
         </div>
 
-        {/* Recent Trips */}
+        {/* Summary Stats */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+          <div className="bg-white rounded-lg shadow p-4">
+            <p className="text-sm text-gray-600">Total Miles</p>
+            <p className="text-2xl font-bold text-gray-900">{totalMiles.toFixed(1)}</p>
+          </div>
+          <div className="bg-white rounded-lg shadow p-4">
+            <p className="text-sm text-gray-600">Total Amount</p>
+            <p className="text-2xl font-bold text-green-600">${totalAmount.toFixed(2)}</p>
+          </div>
+          <div className="bg-white rounded-lg shadow p-4">
+            <p className="text-sm text-gray-600">Business Miles</p>
+            <p className="text-2xl font-bold text-blue-600">{businessMiles.toFixed(1)}</p>
+          </div>
+          <div className="bg-white rounded-lg shadow p-4">
+            <p className="text-sm text-gray-600">Personal Miles</p>
+            <p className="text-2xl font-bold text-purple-600">{personalMiles.toFixed(1)}</p>
+          </div>
+        </div>
+
+        {/* Trip History */}
         <div className="bg-white rounded-lg shadow">
           <div className="px-6 py-4 border-b">
-            <h2 className="text-lg font-semibold">Recent Trips</h2>
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <h2 className="text-lg font-semibold">Trip History ({filteredTrips.length} trips)</h2>
+
+              <div className="flex flex-wrap items-center gap-2">
+                {/* Type Filter */}
+                <select
+                  value={typeFilter}
+                  onChange={(e) => setTypeFilter(e.target.value as 'all' | 'business' | 'personal')}
+                  className="px-3 py-1.5 border rounded-lg text-sm"
+                >
+                  <option value="all">All Types</option>
+                  <option value="business">Business</option>
+                  <option value="personal">Personal</option>
+                </select>
+
+                {/* Date Filter */}
+                <select
+                  value={dateFilter}
+                  onChange={(e) => setDateFilter(e.target.value as 'all' | 'month' | 'quarter' | 'year')}
+                  className="px-3 py-1.5 border rounded-lg text-sm"
+                >
+                  <option value="all">All Time</option>
+                  <option value="month">This Month</option>
+                  <option value="quarter">This Quarter</option>
+                  <option value="year">This Year</option>
+                </select>
+
+                {/* Export Button */}
+                <button
+                  onClick={exportToCSV}
+                  className="px-3 py-1.5 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700"
+                >
+                  Export CSV
+                </button>
+              </div>
+            </div>
           </div>
 
           <div className="divide-y">
-            {trips.length === 0 ? (
+            {filteredTrips.length === 0 ? (
               <div className="p-8 text-center text-gray-500">No trips recorded yet</div>
             ) : (
-              trips.map((trip) => (
+              filteredTrips.map((trip) => (
                 <div key={trip.id} className="px-6 py-4 hover:bg-gray-50">
                   <div className="flex items-center justify-between">
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1">
                         <span className="font-semibold">{trip.distance.toFixed(2)} miles</span>
-                        {trip.is_business && (
-                          <span className="px-2 py-0.5 bg-blue-100 text-blue-800 text-xs rounded-full">
-                            Business
-                          </span>
-                        )}
+                        <span className={`px-2 py-0.5 text-xs rounded-full ${
+                          trip.is_business
+                            ? 'bg-blue-100 text-blue-800'
+                            : 'bg-purple-100 text-purple-800'
+                        }`}>
+                          {trip.is_business ? 'Business' : 'Personal'}
+                        </span>
                       </div>
                       <p className="text-sm text-gray-600">{trip.purpose || 'No purpose'}</p>
                       <p className="text-xs text-gray-500">
-                        {new Date(trip.date).toLocaleDateString()} • ${trip.amount.toFixed(2)}
+                        {new Date(trip.date).toLocaleDateString()} | ${trip.amount.toFixed(2)}
                       </p>
+                      {(trip.start_location || trip.end_location) && (
+                        <p className="text-xs text-gray-400 mt-1 truncate max-w-md">
+                          {trip.start_location && `From: ${trip.start_location.split(',')[0]}`}
+                          {trip.start_location && trip.end_location && ' → '}
+                          {trip.end_location && `To: ${trip.end_location.split(',')[0]}`}
+                        </p>
+                      )}
                     </div>
                     <button
                       onClick={() => deleteTrip(trip.id)}
