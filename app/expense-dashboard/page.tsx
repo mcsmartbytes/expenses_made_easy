@@ -66,6 +66,21 @@ export default function ExpenseDashboard() {
 
       console.log('✅ User authenticated, loading data...');
 
+      // Auto-generate any due recurring expenses
+      try {
+        const genResponse = await fetch('/api/recurring-expenses/generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ user_id: user.id }),
+        });
+        const genResult = await genResponse.json();
+        if (genResult.success && genResult.generated > 0) {
+          console.log(`✅ Auto-generated ${genResult.generated} recurring expense(s)`);
+        }
+      } catch (genError) {
+        console.log('Note: Recurring expenses not available yet');
+      }
+
       const now = new Date();
       const firstDayThisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
       const firstDayLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);

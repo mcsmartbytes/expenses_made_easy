@@ -1,3 +1,24 @@
 {
-  "/_not-found/page": "app/_not-found/page.js"
+  "/_not-found/page": "app/_not-found/page.js",
+  "/api/categories/route": "app/api/categories/route.js",
+  "/auth/login/page": "app/auth/login/page.js",
+  "/api/create-checkout-session/route": "app/api/create-checkout-session/route.js",
+  "/budgets/page": "app/budgets/page.js",
+  "/auth/signin/page": "app/auth/signin/page.js",
+  "/expenses/new/page": "app/expenses/new/page.js",
+  "/expenses/page": "app/expenses/page.js",
+  "/auth/signup/page": "app/auth/signup/page.js",
+  "/mileage/page": "app/mileage/page.js",
+  "/expense-dashboard/page": "app/expense-dashboard/page.js",
+  "/checkout/page": "app/checkout/page.js",
+  "/profile/page": "app/profile/page.js",
+  "/receipts/page": "app/receipts/page.js",
+  "/auth/callback/page": "app/auth/callback/page.js",
+  "/reports/page": "app/reports/page.js",
+  "/settings/page": "app/settings/page.js",
+  "/pricing/page": "app/pricing/page.js",
+  "/api/webhooks/stripe/route": "app/api/webhooks/stripe/route.js",
+  "/api/ocr-receipt/route": "app/api/ocr-receipt/route.js",
+  "/page": "app/page.js",
+  "/success/page": "app/success/page.js"
 }

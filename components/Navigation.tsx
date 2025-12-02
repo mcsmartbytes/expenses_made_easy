@@ -43,6 +43,7 @@ export default function Navigation() {
   const navItems = [
     { href: '/expense-dashboard', label: 'Dashboard', icon: '📊' },
     { href: '/expenses', label: 'Expenses', icon: '📋' },
+    { href: '/recurring', label: 'Recurring', icon: '🔄' },
     { href: '/budgets', label: 'Budgets', icon: '💰' },
     { href: '/receipts', label: 'Receipts', icon: '🧾' },
     { href: '/mileage', label: 'Mileage', icon: '🚗' },
