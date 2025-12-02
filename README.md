@@ -1,8 +1,10 @@
 # Expenses Made Easy
 
-A professional business expense tracking application with IRS-compliant tax classification, AI-powered receipt scanning, GPS-based mileage tracking, and comprehensive tax reporting.
+A professional business expense tracking application with IRS-compliant tax classification, AI-powered receipt scanning, GPS-based mileage tracking, recurring expense management, and comprehensive tax reporting.
 
 **Live Site:** https://expenses-made-easy-opal.vercel.app/
+
+**Install as App:** Available as a Progressive Web App (PWA) - install on your phone's home screen!
 
 ---
 
@@ -12,14 +14,39 @@ A professional business expense tracking application with IRS-compliant tax clas
 - **Expense Tracking** - Add, edit, and categorize business/personal expenses
 - **AI Receipt Scanning** - Upload receipt photos, AI extracts vendor, amount, date, tax breakdown
 - **GPS Mileage Tracking** - Automatic trip tracking with IRS standard mileage rate ($0.67/mile for 2025)
+- **Recurring Expenses** - Set up monthly, weekly, quarterly, or annual recurring expenses
 - **Tax Reports** - IRS Schedule C compliant reports with CSV export
 - **Category Management** - Custom categories with tax deduction percentages
+- **Budget Tracking** - Set and track spending budgets by category
+- **Receipt Gallery** - Visual gallery of all scanned receipts
+
+### Progressive Web App (PWA)
+- Install on Android or iPhone home screen
+- Full-screen app experience (no browser bar)
+- Offline support with cached pages
+- App shortcuts for quick actions (long-press icon)
+- Automatic install prompt
 
 ### AI-Powered OCR
 - Scan receipts with GPT-4 Vision
 - Auto-extracts: vendor, subtotal, tax, total, date, items, payment method
 - Shows tax breakdown (subtotal, tax rate, total)
 - Auto-fills expense form
+
+### Recurring Expenses
+- Frequencies: Weekly, Biweekly, Monthly, Quarterly, Annually
+- Auto-generates expenses when due (on dashboard load)
+- Pause/Resume individual recurring expenses
+- Upcoming expenses preview (next 30 days)
+- Estimated monthly total calculation
+
+### Mileage Tracking
+- GPS-based automatic tracking (starts at 5+ mph)
+- Manual tracking option
+- Full trip history with filters
+- Business/Personal classification
+- CSV export for mileage logs
+- Real-time speed display
 
 ### Industry-Specific Categories
 Select your industry to get pre-loaded expense categories:
@@ -56,6 +83,7 @@ Select your industry to get pre-loaded expense categories:
 | **OpenAI GPT-4o-mini** | Receipt OCR |
 | **Stripe** | Subscription payments |
 | **Vercel** | Hosting |
+| **PWA** | Mobile app experience |
 
 ---
 
@@ -108,6 +136,35 @@ NEXT_PUBLIC_APP_URL=http://localhost:3000
 Run these SQL files in Supabase SQL Editor:
 1. `TAX_CLASSIFICATION_SCHEMA.sql` - Tax classification tables
 2. `supabase_user_profile_schema.sql` - User profiles with industry
+3. Recurring expenses table (see below)
+
+#### Recurring Expenses Table
+
+```sql
+CREATE TABLE recurring_expenses (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+  amount DECIMAL(10,2) NOT NULL,
+  description TEXT NOT NULL,
+  category_id UUID REFERENCES categories(id) ON DELETE SET NULL,
+  vendor TEXT,
+  payment_method TEXT DEFAULT 'credit',
+  is_business BOOLEAN DEFAULT true,
+  notes TEXT,
+  frequency TEXT NOT NULL CHECK (frequency IN ('weekly', 'biweekly', 'monthly', 'quarterly', 'annually')),
+  start_date DATE NOT NULL,
+  next_due_date DATE NOT NULL,
+  last_generated_date DATE,
+  is_active BOOLEAN DEFAULT true,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+ALTER TABLE recurring_expenses ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can manage own recurring expenses" ON recurring_expenses
+  FOR ALL USING (auth.uid() = user_id);
+```
 
 ### Run Development Server
 
@@ -125,32 +182,39 @@ Open http://localhost:3000
 expenses_made_easy/
 ├── app/
 │   ├── api/
-│   │   ├── categories/         # Categories CRUD API
-│   │   ├── ocr-receipt/        # AI receipt scanning
+│   │   ├── categories/              # Categories CRUD API
+│   │   ├── ocr-receipt/             # AI receipt scanning
+│   │   ├── recurring-expenses/      # Recurring expenses API
+│   │   │   └── generate/            # Auto-generate due expenses
 │   │   ├── create-checkout-session/
 │   │   └── webhooks/stripe/
 │   ├── auth/
 │   │   ├── login/
 │   │   ├── signup/
 │   │   └── callback/
-│   ├── expense-dashboard/      # Main dashboard
+│   ├── expense-dashboard/           # Main dashboard
 │   ├── expenses/
-│   │   └── new/                # Add expense with OCR
-│   ├── profile/                # Profile & category management
-│   ├── reports/                # Tax reports
-│   ├── mileage/                # Mileage tracking
-│   ├── budgets/                # Budget tracking
-│   ├── receipts/               # Receipt gallery
-│   ├── settings/               # User settings
-│   └── page.tsx                # Landing page
+│   │   └── new/                     # Add expense with OCR
+│   ├── recurring/                   # Recurring expenses management
+│   ├── profile/                     # Profile & category management
+│   ├── reports/                     # Tax reports
+│   ├── mileage/                     # Mileage tracking
+│   ├── budgets/                     # Budget tracking
+│   ├── receipts/                    # Receipt gallery
+│   ├── settings/                    # User settings
+│   └── page.tsx                     # Landing page
 ├── components/
 │   └── Navigation.tsx
 ├── utils/
-│   ├── supabase.ts             # Supabase client
-│   ├── supabaseAdmin.ts        # Admin client (bypasses RLS)
-│   ├── industryCategories.ts   # Industry category definitions
-│   └── subscription.ts         # Subscription utilities
-└── public/
+│   ├── supabase.ts                  # Supabase client
+│   ├── supabaseAdmin.ts             # Admin client (bypasses RLS)
+│   ├── industryCategories.ts        # Industry category definitions
+│   └── subscription.ts              # Subscription utilities
+├── public/
+│   ├── manifest.json                # PWA manifest
+│   ├── sw.js                        # Service worker
+│   └── icons/                       # App icons
+└── CLAUDE.md                        # Project context
 ```
 
 ---
@@ -163,10 +227,12 @@ expenses_made_easy/
 | `/auth/login` | User login |
 | `/auth/signup` | User registration |
 | `/expense-dashboard` | Main dashboard |
+| `/expenses` | All expenses with edit/delete |
 | `/expenses/new` | Add expense with OCR |
+| `/recurring` | Recurring expenses management |
 | `/profile` | Profile & categories |
 | `/reports` | Tax reports |
-| `/mileage` | Mileage tracking |
+| `/mileage` | Mileage tracking with history |
 | `/budgets` | Budget management |
 | `/receipts` | Receipt gallery |
 | `/settings` | App settings |
@@ -182,6 +248,11 @@ expenses_made_easy/
 | `/api/categories` | PUT | Update category |
 | `/api/categories` | DELETE | Delete category |
 | `/api/ocr-receipt` | POST | Scan receipt with AI |
+| `/api/recurring-expenses` | GET | List recurring expenses |
+| `/api/recurring-expenses` | POST | Create recurring expense |
+| `/api/recurring-expenses` | PUT | Update recurring expense |
+| `/api/recurring-expenses` | DELETE | Delete recurring expense |
+| `/api/recurring-expenses/generate` | POST | Generate due expenses |
 
 ---
 
@@ -200,6 +271,20 @@ expenses_made_easy/
    - Payment method
 4. Form auto-fills with extracted data
 
+### Recurring Expenses
+1. Go to Recurring page
+2. Click "Add Recurring Expense"
+3. Set amount, description, frequency, start date
+4. Expenses auto-generate when due (on dashboard load)
+5. Pause/resume anytime
+
+### Mileage Tracking
+1. Open Mileage page
+2. Auto-tracking starts at 5+ mph (or click Manual Start)
+3. Stop & save when trip ends
+4. View full history with filters
+5. Export to CSV
+
 ### Tax Reports
 - Date range selection
 - Schedule C line item breakdown
@@ -207,11 +292,19 @@ expenses_made_easy/
 - CSV export for accountants
 - Tax savings estimates
 
-### Category Management
-- Add custom categories
-- Select industry for pre-loaded categories
-- Set tax deduction percentages
-- Map to Schedule C lines
+### PWA Installation
+
+**Android (Chrome):**
+1. Visit the app URL
+2. You'll see an "Install App" popup
+3. Tap "Install Now"
+4. App icon appears on home screen
+
+**iPhone (Safari):**
+1. Visit the app URL
+2. Tap the Share button
+3. Tap "Add to Home Screen"
+4. Tap "Add"
 
 ---
 
@@ -232,6 +325,7 @@ Make sure to add all env variables in:
 
 ## Documentation
 
+- `CLAUDE.md` - Project context and quick reference
 - `PROJECT_SUMMARY.md` - Detailed feature documentation
 - `TAX_CLASSIFICATION_SCHEMA.sql` - Database schema
 - `TESTING_CHECKLIST.md` - Testing guide
