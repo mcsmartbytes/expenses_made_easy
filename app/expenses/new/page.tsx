@@ -16,12 +16,18 @@ interface Category {
   tax_classification_type?: string;
 }
 
+interface Job {
+  id: string;
+  name: string;
+}
+
 export default function NewExpensePage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [loadingCategories, setLoadingCategories] = useState(true);
   const [scanningReceipt, setScanningReceipt] = useState(false);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [jobs, setJobs] = useState<Job[]>([]);
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
   const [ocrData, setOcrData] = useState<any>(null);
   const [subscriptionLimit, setSubscriptionLimit] = useState<{ allowed: boolean; message?: string; remaining?: number } | null>(null);
@@ -34,10 +40,12 @@ export default function NewExpensePage() {
     payment_method: 'credit',
     is_business: true,
     notes: '',
+    job_id: '', // NEW
   });
 
   useEffect(() => {
     loadCategories();
+    loadJobs();
     checkSubscriptionLimit();
   }, []);
 
@@ -46,6 +54,20 @@ export default function NewExpensePage() {
     if (user) {
       const result = await canAddExpense(user.id);
       setSubscriptionLimit(result);
+    }
+  }
+
+  async function loadJobs() {
+    try {
+      const { data, error } = await supabase
+        .from('jobs')
+        .select('id, name')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setJobs(data || []);
+    } catch (err) {
+      console.error('Error loading jobs:', err);
     }
   }
 
@@ -181,15 +203,15 @@ export default function NewExpensePage() {
         setOcrData(result.data);
 
         // Auto-fill form fields with OCR data
-        setFormData({
-          ...formData,
-          amount: result.data.amount || formData.amount,
-          vendor: result.data.vendor || formData.vendor,
-          date: result.data.date || formData.date,
-          description: result.data.description || formData.description,
-          payment_method: result.data.payment_method || formData.payment_method,
-          notes: result.data.items ? `Items: ${result.data.items.join(', ')}` : formData.notes,
-        });
+        setFormData((prev) => ({
+          ...prev,
+          amount: result.data.amount || prev.amount,
+          vendor: result.data.vendor || prev.vendor,
+          date: result.data.date || prev.date,
+          description: result.data.description || prev.description,
+          payment_method: result.data.payment_method || prev.payment_method,
+          notes: result.data.items ? `Items: ${result.data.items.join(', ')}` : prev.notes,
+        }));
 
         alert('✅ Receipt scanned successfully! Review the auto-filled information.');
       }
@@ -233,6 +255,7 @@ export default function NewExpensePage() {
       const { error } = await supabase.from('expenses').insert({
         ...formData,
         amount: parseFloat(formData.amount),
+        job_id: formData.job_id || null, // explicit, though formData already has it
         receipt_url,
         user_id: user.id,
       });
@@ -299,18 +322,39 @@ export default function NewExpensePage() {
               <label className="block text-sm font-medium mb-2">Amount *</label>
               <div className="relative">
                 <span className="absolute left-3 top-2.5">$</span>
-                <input type="number" step="0.01" required value={formData.amount} onChange={(e) => setFormData({ ...formData, amount: e.target.value })} className="w-full pl-8 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500" placeholder="0.00" />
+                <input
+                  type="number"
+                  step="0.01"
+                  required
+                  value={formData.amount}
+                  onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
+                  className="w-full pl-8 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                  placeholder="0.00"
+                />
               </div>
             </div>
 
             <div>
               <label className="block text-sm font-medium mb-2">Description *</label>
-              <input type="text" required value={formData.description} onChange={(e) => setFormData({ ...formData, description: e.target.value })} className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500" placeholder="What was this expense for?" />
+              <input
+                type="text"
+                required
+                value={formData.description}
+                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                placeholder="What was this expense for?"
+              />
             </div>
 
             <div>
               <label className="block text-sm font-medium mb-2">Category *</label>
-              <select required value={formData.category_id} onChange={(e) => setFormData({ ...formData, category_id: e.target.value })} disabled={loadingCategories} className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 disabled:opacity-50">
+              <select
+                required
+                value={formData.category_id}
+                onChange={(e) => setFormData({ ...formData, category_id: e.target.value })}
+                disabled={loadingCategories}
+                className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+              >
                 <option value="">{loadingCategories ? 'Loading categories...' : 'Select a category'}</option>
                 {categories.map((cat) => (
                   <option key={cat.id} value={cat.id}>{cat.icon} {cat.name}</option>
@@ -415,17 +459,33 @@ export default function NewExpensePage() {
 
             <div>
               <label className="block text-sm font-medium mb-2">Date *</label>
-              <input type="date" required value={formData.date} onChange={(e) => setFormData({ ...formData, date: e.target.value })} className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500" />
+              <input
+                type="date"
+                required
+                value={formData.date}
+                onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+              />
             </div>
 
             <div>
               <label className="block text-sm font-medium mb-2">Vendor</label>
-              <input type="text" value={formData.vendor} onChange={(e) => setFormData({ ...formData, vendor: e.target.value })} className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500" placeholder="Where did you make this purchase?" />
+              <input
+                type="text"
+                value={formData.vendor}
+                onChange={(e) => setFormData({ ...formData, vendor: e.target.value })}
+                className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                placeholder="Where did you make this purchase?"
+              />
             </div>
 
             <div>
               <label className="block text-sm font-medium mb-2">Payment Method</label>
-              <select value={formData.payment_method} onChange={(e) => setFormData({ ...formData, payment_method: e.target.value })} className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
+              <select
+                value={formData.payment_method}
+                onChange={(e) => setFormData({ ...formData, payment_method: e.target.value })}
+                className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+              >
                 <option value="credit">Credit Card</option>
                 <option value="debit">Debit Card</option>
                 <option value="cash">Cash</option>
@@ -435,9 +495,34 @@ export default function NewExpensePage() {
 
             <div>
               <label className="flex items-center gap-3">
-                <input type="checkbox" checked={formData.is_business} onChange={(e) => setFormData({ ...formData, is_business: e.target.checked })} className="w-5 h-5 text-blue-600 rounded" />
+                <input
+                  type="checkbox"
+                  checked={formData.is_business}
+                  onChange={(e) => setFormData({ ...formData, is_business: e.target.checked })}
+                  className="w-5 h-5 text-blue-600 rounded"
+                />
                 <span className="text-sm font-medium">This is a business expense</span>
               </label>
+            </div>
+
+            {/* NEW: Job selection */}
+            <div>
+              <label className="block text-sm font-medium mb-2">Job (optional)</label>
+              <select
+                value={formData.job_id}
+                onChange={(e) => setFormData({ ...formData, job_id: e.target.value })}
+                className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">No job / general expense</option>
+                {jobs.map((job) => (
+                  <option key={job.id} value={job.id}>
+                    {job.name}
+                  </option>
+                ))}
+              </select>
+              <p className="text-xs text-gray-500 mt-1">
+                Link this expense to a specific job if it’s part of a project. Leave blank for general overhead.
+              </p>
             </div>
 
             <div>
@@ -550,14 +635,29 @@ export default function NewExpensePage() {
 
             <div>
               <label className="block text-sm font-medium mb-2">Notes</label>
-              <textarea value={formData.notes} onChange={(e) => setFormData({ ...formData, notes: e.target.value })} rows={3} className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500" placeholder="Additional details..." />
+              <textarea
+                value={formData.notes}
+                onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                rows={3}
+                className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                placeholder="Additional details..."
+              />
             </div>
 
             <div className="flex gap-4">
-              <button type="submit" disabled={loading} className="flex-1 bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 disabled:opacity-50">
+              <button
+                type="submit"
+                disabled={loading}
+                className="flex-1 bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 disabled:opacity-50"
+              >
                 {loading ? 'Adding...' : 'Add Expense'}
               </button>
-              <Link href="/expense-dashboard" className="flex-1 bg-gray-200 text-gray-700 py-3 rounded-lg font-semibold hover:bg-gray-300 text-center">Cancel</Link>
+              <Link
+                href="/expense-dashboard"
+                className="flex-1 bg-gray-200 text-gray-700 py-3 rounded-lg font-semibold hover:bg-gray-300 text-center"
+              >
+                Cancel
+              </Link>
             </div>
           </form>
         </div>
@@ -565,3 +665,4 @@ export default function NewExpensePage() {
     </div>
   );
 }
+

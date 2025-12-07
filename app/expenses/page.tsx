@@ -20,6 +20,9 @@ interface Expense {
     icon: string;
     color: string;
   } | null;
+  // NEW: job info
+  job_id?: string | null;
+  job_name?: string | null;
 }
 
 interface Category {
@@ -29,12 +32,19 @@ interface Category {
   icon: string;
 }
 
+interface Job {
+  id: string;
+  name: string;
+}
+
 export default function ExpensesPage() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterType, setFilterType] = useState<'all' | 'business' | 'personal'>('all');
   const [dateRange, setDateRange] = useState<'all' | 'month' | 'quarter' | 'year'>('all');
+  const [jobFilterId, setJobFilterId] = useState<string>(''); // '' = all jobs
 
   // Edit modal state
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
@@ -47,12 +57,14 @@ export default function ExpensesPage() {
     payment_method: 'credit',
     is_business: true,
     notes: '',
+    job_id: '', // NEW
   });
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     loadExpenses();
     loadCategories();
+    loadJobs();
   }, []);
 
   async function loadCategories() {
@@ -67,6 +79,20 @@ export default function ExpensesPage() {
     }
   }
 
+  async function loadJobs() {
+    try {
+      const { data, error } = await supabase
+        .from('jobs')
+        .select('id, name')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setJobs(data || []);
+    } catch (error) {
+      console.error('Error loading jobs:', error);
+    }
+  }
+
   async function loadExpenses() {
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -78,18 +104,34 @@ export default function ExpensesPage() {
 
       const { data, error } = await supabase
         .from('expenses')
-        .select('id, amount, description, date, vendor, is_business, payment_method, notes, category_id, categories(name, icon, color)')
+        .select(
+          `
+            id,
+            amount,
+            description,
+            date,
+            vendor,
+            is_business,
+            payment_method,
+            notes,
+            category_id,
+            job_id,
+            categories(name, icon, color),
+            jobs(name)
+          `
+        )
         .eq('user_id', user.id)
         .order('date', { ascending: false });
 
       if (error) throw error;
 
-      const formattedExpenses = data?.map((exp: any) => ({
+      const formattedExpenses: Expense[] = (data || []).map((exp: any) => ({
         ...exp,
-        category: exp.categories || null
-      })) || [];
+        category: exp.categories || null,
+        job_name: exp.jobs?.name ?? null,
+      }));
 
-      setExpenses(formattedExpenses as Expense[]);
+      setExpenses(formattedExpenses);
     } catch (error) {
       console.error('Error loading expenses:', error);
     } finally {
@@ -121,6 +163,7 @@ export default function ExpensesPage() {
       payment_method: expense.payment_method || 'credit',
       is_business: expense.is_business,
       notes: expense.notes || '',
+      job_id: expense.job_id || '',
     });
   }
 
@@ -135,6 +178,7 @@ export default function ExpensesPage() {
       payment_method: 'credit',
       is_business: true,
       notes: '',
+      job_id: '',
     });
   }
 
@@ -155,6 +199,7 @@ export default function ExpensesPage() {
           payment_method: editFormData.payment_method,
           is_business: editFormData.is_business,
           notes: editFormData.notes || null,
+          job_id: editFormData.job_id || null, // NEW
         })
         .eq('id', editingExpense.id);
 
@@ -169,7 +214,7 @@ export default function ExpensesPage() {
     }
   }
 
-  // Filter expenses based on type and date range
+  // Filter expenses based on type, date range, and job
   function getFilteredExpenses() {
     let filtered = expenses;
 
@@ -193,6 +238,11 @@ export default function ExpensesPage() {
       filtered = filtered.filter(e => new Date(e.date) >= startOfYear);
     }
 
+    // Filter by job
+    if (jobFilterId) {
+      filtered = filtered.filter(e => e.job_id === jobFilterId);
+    }
+
     return filtered;
   }
 
@@ -204,11 +254,12 @@ export default function ExpensesPage() {
       return;
     }
 
-    const headers = ['Date', 'Description', 'Category', 'Vendor', 'Type', 'Payment Method', 'Amount', 'Notes'];
+    const headers = ['Date', 'Description', 'Category', 'Job', 'Vendor', 'Type', 'Payment Method', 'Amount', 'Notes'];
     const rows = filteredExpenses.map(expense => [
       expense.date,
       `"${expense.description.replace(/"/g, '""')}"`,
       expense.category?.name || '',
+      expense.job_name || '',
       expense.vendor || '',
       expense.is_business ? 'Business' : 'Personal',
       expense.payment_method || '',
@@ -304,6 +355,23 @@ export default function ExpensesPage() {
                   <option value="year">This Year</option>
                 </select>
               </div>
+
+              {/* Job Filter */}
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">Job</label>
+                <select
+                  value={jobFilterId}
+                  onChange={(e) => setJobFilterId(e.target.value)}
+                  className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">All Jobs</option>
+                  {jobs.map(job => (
+                    <option key={job.id} value={job.id}>
+                      {job.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
 
             {/* Summary Stats */}
@@ -340,6 +408,7 @@ export default function ExpensesPage() {
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Job</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Vendor</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
                     <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
@@ -361,11 +430,18 @@ export default function ExpensesPage() {
                           </span>
                         )}
                       </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                        {expense.job_name || '—'}
+                      </td>
                       <td className="px-6 py-4 text-sm text-gray-600">{expense.vendor || '-'}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm">
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                          expense.is_business ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800'
-                        }`}>
+                        <span
+                          className={`px-2 py-1 rounded-full text-xs font-medium ${
+                            expense.is_business
+                              ? 'bg-blue-100 text-blue-800'
+                              : 'bg-gray-100 text-gray-800'
+                          }`}
+                        >
                           {expense.is_business ? 'Business' : 'Personal'}
                         </span>
                       </td>
@@ -379,7 +455,10 @@ export default function ExpensesPage() {
                         >
                           Edit
                         </button>
-                        <button onClick={() => deleteExpense(expense.id)} className="text-red-600 hover:text-red-900">
+                        <button
+                          onClick={() => deleteExpense(expense.id)}
+                          className="text-red-600 hover:text-red-900"
+                        >
                           Delete
                         </button>
                       </td>
@@ -393,8 +472,9 @@ export default function ExpensesPage() {
 
         <div className="mt-6 flex justify-between items-center">
           <p className="text-sm text-gray-600">
-            Showing {filteredExpenses.length} of {expenses.length} expense{expenses.length !== 1 ? 's' : ''}
-            {filterType !== 'all' || dateRange !== 'all' ? ' (filtered)' : ''}
+            Showing {filteredExpenses.length} of {expenses.length} expense
+            {expenses.length !== 1 ? 's' : ''}
+            {filterType !== 'all' || dateRange !== 'all' || jobFilterId ? ' (filtered)' : ''}
           </p>
           <Link href="/expense-dashboard" className="text-blue-600 hover:text-blue-700 font-semibold">
             Back to Dashboard
@@ -455,7 +535,9 @@ export default function ExpensesPage() {
                   >
                     <option value="">Select a category</option>
                     {categories.map((cat) => (
-                      <option key={cat.id} value={cat.id}>{cat.icon} {cat.name}</option>
+                      <option key={cat.id} value={cat.id}>
+                        {cat.icon} {cat.name}
+                      </option>
                     ))}
                   </select>
                 </div>
@@ -508,6 +590,22 @@ export default function ExpensesPage() {
                 </div>
 
                 <div>
+                  <label className="block text-sm font-medium mb-1">Job</label>
+                  <select
+                    value={editFormData.job_id}
+                    onChange={(e) => setEditFormData({ ...editFormData, job_id: e.target.value })}
+                    className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">No job / general expense</option>
+                    {jobs.map((job) => (
+                      <option key={job.id} value={job.id}>
+                        {job.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
                   <label className="block text-sm font-medium mb-1">Notes</label>
                   <textarea
                     value={editFormData.notes}
@@ -541,3 +639,4 @@ export default function ExpensesPage() {
     </div>
   );
 }
+
