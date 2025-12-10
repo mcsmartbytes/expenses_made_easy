@@ -1,0 +1,10 @@
+var R=require("../../../chunks/[turbopack]_runtime.js")("server/app/api/categories/route.js")
+R.c("server/chunks/519c8_@supabase_node-fetch_lib_index_80d370ad.js")
+R.c("server/chunks/519c8_next_9bdd24c7._.js")
+R.c("server/chunks/519c8_tr46_93a77c1f._.js")
+R.c("server/chunks/519c8_@supabase_auth-js_dist_module_a902c840._.js")
+R.c("server/chunks/519c8_ffcb257a._.js")
+R.c("server/chunks/[root-of-the-server]__5d6544d1._.js")
+R.c("server/chunks/ce3f7_made_easy__next-internal_server_app_api_categories_route_actions_95b8ff11.js")
+R.m("[project]/projects/active/expenses_made_easy/node_modules/next/dist/esm/build/templates/app-route.js { INNER_APP_ROUTE => \"[project]/projects/active/expenses_made_easy/app/api/categories/route.ts [app-route] (ecmascript)\" } [app-route] (ecmascript)")
+module.exports=R.m("[project]/projects/active/expenses_made_easy/node_modules/next/dist/esm/build/templates/app-route.js { INNER_APP_ROUTE => \"[project]/projects/active/expenses_made_easy/app/api/categories/route.ts [app-route] (ecmascript)\" } [app-route] (ecmascript)").exports

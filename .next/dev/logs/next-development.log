@@ -1,0 +1,38 @@
+[00:00:01.877] Server  LOG     
+[00:00:01.877] Server  LOG        We detected TypeScript in your project and reconfigured your tsconfig.json file for you.
+[00:00:01.877] Server  LOG        The following suggested values were added to your tsconfig.json. These values can be changed to fit your project's needs:
+
+[00:00:01.877] Server  LOG        	- include was updated to add '.next/dev/types/**/*.ts'
+[00:00:01.878] Server  LOG     
+[00:00:01.878] Server  LOG        The following mandatory changes were made to your tsconfig.json:
+
+[00:00:01.878] Server  LOG        	- jsx was set to react-jsx (next.js uses the React automatic runtime)
+[00:00:01.878] Server  LOG     
+[00:00:01.900] Server  WARN     ⚠ The "middleware" file convention is deprecated. Please use "proxy" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
+[00:00:02.095] Server  LOG      ✓ Ready in 1519ms
+[00:10:40.906] Server  LOG      ○ Compiling /_not-found/page ...
+[00:10:42.049] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[00:10:42.169] Browser LOG     ServiceWorker registration successful
+[00:10:45.936] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[00:10:46.067] Browser LOG     ServiceWorker registration successful
+[00:12:16.336] Browser LOG     📊 Loading dashboard...
+[00:12:16.336] Browser LOG     📊 Loading dashboard...
+[00:12:16.336] Browser LOG     🔑 Session check: ❌ Not found
+[00:12:16.336] Browser LOG     🔑 Session check: ❌ Not found
+[00:12:16.336] Browser LOG     👤 User check: ❌ Not found
+[00:12:16.336] Browser LOG     ⚠️ No user found, but continuing anyway (auth disabled for dev)
+[00:12:16.336] Browser LOG     👤 User check: ❌ Not found
+[00:12:16.336] Browser LOG     ⚠️ No user found, but continuing anyway (auth disabled for dev)
+[00:12:24.686] Server  WARN    Supabase admin client is missing env vars. Check NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.
+[00:12:24.977] Server  ERROR    ⨯ Error: supabaseKey is required.
+[00:12:27.292] Server  ERROR    ⨯ Error: supabaseKey is required.
+[00:12:27.344] Browser ERROR   Error loading categories: {}
+[00:12:27.449] Browser ERROR   Error loading categories: {}
+[00:12:44.713] Browser LOG     📊 Loading dashboard...
+[00:12:44.713] Browser LOG     📊 Loading dashboard...
+[00:12:44.713] Browser LOG     🔑 Session check: ❌ Not found
+[00:12:44.713] Browser LOG     🔑 Session check: ❌ Not found
+[00:12:44.713] Browser LOG     👤 User check: ❌ Not found
+[00:12:44.713] Browser LOG     ⚠️ No user found, but continuing anyway (auth disabled for dev)
+[00:12:44.713] Browser LOG     👤 User check: ❌ Not found
+[00:12:44.713] Browser LOG     ⚠️ No user found, but continuing anyway (auth disabled for dev)
