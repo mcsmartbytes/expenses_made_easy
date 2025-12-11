@@ -1,6 +1,0 @@
-{
-  "version": 3,
-  "sources": [],
-  "sections": [
-    {"offset": {"line": 4, "column": 0}, "map": {"version":3,"sources":["file:///home/mcsmart/projects/active/expenses_made_easy/app/%28expenses%29/layout.tsx"],"sourcesContent":["import type { Metadata } from 'next'\n\nexport const metadata: Metadata = {\n  title: 'Expenses Made Easy',\n  description: 'Supercharged expense tracking with budgets, receipts, and mileage.',\n  openGraph: {\n    title: 'Expenses Made Easy',\n    siteName: 'Expenses Made Easy',\n  },\n}\n\nexport default function ExpensesLayout({ children }: { children: React.ReactNode }) {\n  return children as React.ReactElement\n}\n\n"],"names":[],"mappings":";;;;;;AAEO,MAAM,WAAqB;IAChC,OAAO;IACP,aAAa;IACb,WAAW;QACT,OAAO;QACP,UAAU;IACZ;AACF;AAEe,SAAS,eAAe,EAAE,QAAQ,EAAiC;IAChF,OAAO;AACT"}}]
-}
