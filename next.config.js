@@ -1,7 +1,11 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Silence workspace root inference warning when multiple lockfiles exist
+  turbopack: {
+    root: __dirname,
+  },
   images: {
-    domains: ['vckynnyputrvwjhosryl.supabase.co'],
+    // Use remotePatterns (domains is deprecated in Next 16)
     remotePatterns: [
       {
         protocol: 'https',

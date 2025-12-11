@@ -52,8 +52,8 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$projects$2f$active$2f$expens
 ;
 ;
 const metadata = {
-    title: 'Expenses Made Easy',
-    description: 'Track business expenses with AI receipt scanning and tax reports',
+    title: 'SiteSense',
+    description: 'SiteSense helps small crews and contractors track jobs, time, and expenses in one place.',
     manifest: '/manifest.json',
     appleWebApp: {
         capable: true,
@@ -65,9 +65,9 @@ const metadata = {
     },
     openGraph: {
         type: 'website',
-        siteName: 'Expenses Made Easy',
-        title: 'Expenses Made Easy',
-        description: 'Track business expenses with AI receipt scanning and tax reports'
+        siteName: 'SiteSense',
+        title: 'SiteSense',
+        description: 'SiteSense helps small crews and contractors track jobs, time, and expenses in one place.'
     }
 };
 const viewport = {

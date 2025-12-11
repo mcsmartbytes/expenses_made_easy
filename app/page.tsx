@@ -22,12 +22,20 @@ export default function HomePage() {
             <h1 className="text-2xl font-bold text-gray-900">
               Expenses Made Easy
             </h1>
-            <Link
-              href="/pricing"
-              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition"
-            >
-              View Pricing
-            </Link>
+            <div className="flex items-center gap-3">
+              <Link
+                href="/auth/login"
+                className="text-blue-600 hover:text-blue-700 px-4 py-2 rounded-lg transition"
+              >
+                Sign In
+              </Link>
+              <Link
+                href="/pricing"
+                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition"
+              >
+                View Pricing
+              </Link>
+            </div>
           </div>
         </div>
       </header>

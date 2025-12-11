@@ -41,6 +41,7 @@ export default function NewExpensePage() {
     is_business: true,
     notes: '',
     job_id: '', // NEW
+    po_number: '',
   });
 
   useEffect(() => {
@@ -256,6 +257,7 @@ export default function NewExpensePage() {
         ...formData,
         amount: parseFloat(formData.amount),
         job_id: formData.job_id || null, // explicit, though formData already has it
+        po_number: formData.po_number || null,
         receipt_url,
         user_id: user.id,
       });
@@ -362,6 +364,28 @@ export default function NewExpensePage() {
               </select>
               {loadingCategories && (
                 <p className="text-xs text-blue-600 mt-1">✨ Setting up your categories for the first time...</p>
+              )}
+              {!loadingCategories && categories.length === 0 && (
+                <div className="mt-3 p-3 border border-yellow-300 bg-yellow-50 rounded">
+                  <p className="text-sm text-yellow-800 mb-2">
+                    No categories yet. Create defaults or pick an industry to load suggested categories.
+                  </p>
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={createDefaultCategories}
+                      className="px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm"
+                    >
+                      Use Default Categories
+                    </button>
+                    <Link
+                      href="/profile"
+                      className="px-3 py-2 border border-gray-300 rounded text-sm text-gray-700 hover:bg-gray-50"
+                    >
+                      Open Profile (Pick Industry)
+                    </Link>
+                  </div>
+                </div>
               )}
 
               {/* Tax Information Display */}
@@ -476,6 +500,17 @@ export default function NewExpensePage() {
                 onChange={(e) => setFormData({ ...formData, vendor: e.target.value })}
                 className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
                 placeholder="Where did you make this purchase?"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-2">PO Number (optional)</label>
+              <input
+                type="text"
+                value={formData.po_number}
+                onChange={(e) => setFormData({ ...formData, po_number: e.target.value })}
+                className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                placeholder="e.g., PO-12345"
               />
             </div>
 
@@ -665,4 +700,3 @@ export default function NewExpensePage() {
     </div>
   );
 }
-

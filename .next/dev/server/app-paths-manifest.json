@@ -1,8 +1,23 @@
 {
+  "/(expenses)/expenses/dashboard/page": "app/(expenses)/expenses/dashboard/page.js",
+  "/(expenses)/mileage/page": "app/(expenses)/mileage/page.js",
+  "/(expenses)/settings/page": "app/(expenses)/settings/page.js",
+  "/(sitesense)/estimates/page": "app/(sitesense)/estimates/page.js",
+  "/(sitesense)/expense-dashboard/page": "app/(sitesense)/expense-dashboard/page.js",
+  "/(sitesense)/jobs/[id]/page": "app/(sitesense)/jobs/[id]/page.js",
+  "/(sitesense)/jobs/page": "app/(sitesense)/jobs/page.js",
+  "/(sitesense)/time-tracking/page": "app/(sitesense)/time-tracking/page.js",
   "/_not-found/page": "app/_not-found/page.js",
   "/api/categories/route": "app/api/categories/route.js",
+  "/auth/login/page": "app/auth/login/page.js",
+  "/auth/signin/page": "app/auth/signin/page.js",
+  "/budgets/page": "app/budgets/page.js",
   "/expense-dashboard/page": "app/expense-dashboard/page.js",
+  "/expenses/dashboard/page": "app/expenses/dashboard/page.js",
+  "/expenses/new/page": "app/expenses/new/page.js",
   "/expenses/page": "app/expenses/page.js",
+  "/jobs/[id]/page": "app/jobs/[id]/page.js",
   "/jobs/page": "app/jobs/page.js",
+  "/page": "app/page.js",
   "/time-tracking/page": "app/time-tracking/page.js"
 }

@@ -18,6 +18,7 @@ interface UserProfile {
   created_at: string;
   industry?: string;
   business_name?: string;
+  preferences?: any;
 }
 
 const INDUSTRIES: { key: IndustryKey; label: string }[] = [
@@ -45,6 +46,12 @@ export default function ProfilePage() {
   const [showAddCategory, setShowAddCategory] = useState(false);
   const [selectedIndustry, setSelectedIndustry] = useState<IndustryKey | ''>('');
   const [businessName, setBusinessName] = useState('');
+  const [logoUrl, setLogoUrl] = useState('');
+  const [companyEmail, setCompanyEmail] = useState('');
+  const [companyPhone, setCompanyPhone] = useState('');
+  const [companyAddress, setCompanyAddress] = useState('');
+  const [companyWebsite, setCompanyWebsite] = useState('');
+  const [preferences, setPreferences] = useState<any>({});
   const [savingProfile, setSavingProfile] = useState(false);
   const [creatingCategories, setCreatingCategories] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -71,13 +78,20 @@ export default function ProfilePage() {
       // Load user profile with industry
       const { data: userProfile } = await supabase
         .from('user_profiles')
-        .select('industry, business_name')
+        .select('industry, business_name, preferences')
         .eq('user_id', user.id)
         .single();
 
       if (userProfile) {
         setSelectedIndustry((userProfile.industry as IndustryKey) || '');
         setBusinessName(userProfile.business_name || '');
+        setPreferences(userProfile.preferences || {});
+        const branding = (userProfile.preferences || {}).branding || {};
+        setLogoUrl(branding.logo_url || '');
+        setCompanyEmail(branding.company_email || '');
+        setCompanyPhone(branding.company_phone || '');
+        setCompanyAddress(branding.company_address || '');
+        setCompanyWebsite(branding.company_website || '');
       }
     }
     setLoading(false);
@@ -110,16 +124,25 @@ export default function ProfilePage() {
         .eq('user_id', userId)
         .single();
 
+      const branding = {
+        logo_url: logoUrl || null,
+        company_email: companyEmail || null,
+        company_phone: companyPhone || null,
+        company_address: companyAddress || null,
+        company_website: companyWebsite || null,
+      };
+      const newPrefs = { ...(preferences || {}), branding };
+
       if (existing) {
         const { error } = await supabase
           .from('user_profiles')
-          .update({ industry: selectedIndustry, business_name: businessName })
+          .update({ industry: selectedIndustry, business_name: businessName, preferences: newPrefs })
           .eq('user_id', userId);
         if (error) throw error;
       } else {
         const { error } = await supabase
           .from('user_profiles')
-          .insert({ user_id: userId, industry: selectedIndustry, business_name: businessName });
+          .insert({ user_id: userId, industry: selectedIndustry, business_name: businessName, preferences: newPrefs });
         if (error) throw error;
       }
 
@@ -315,6 +338,59 @@ export default function ProfilePage() {
                   <option key={ind.key} value={ind.key}>{ind.label}</option>
                 ))}
               </select>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Logo URL</label>
+                <input
+                  type="url"
+                  value={logoUrl}
+                  onChange={(e) => setLogoUrl(e.target.value)}
+                  placeholder="https://..."
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Company Email</label>
+                <input
+                  type="email"
+                  value={companyEmail}
+                  onChange={(e) => setCompanyEmail(e.target.value)}
+                  placeholder="you@company.com"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Company Phone</label>
+                <input
+                  type="text"
+                  value={companyPhone}
+                  onChange={(e) => setCompanyPhone(e.target.value)}
+                  placeholder="(555) 123-4567"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Company Website</label>
+                <input
+                  type="url"
+                  value={companyWebsite}
+                  onChange={(e) => setCompanyWebsite(e.target.value)}
+                  placeholder="https://yourcompany.com"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-2">Company Address</label>
+                <textarea
+                  value={companyAddress}
+                  onChange={(e) => setCompanyAddress(e.target.value)}
+                  rows={3}
+                  placeholder="Street, City, State, ZIP"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
             </div>
 
             {selectedIndustry && INDUSTRY_CATEGORIES[selectedIndustry]?.length > 0 && (
