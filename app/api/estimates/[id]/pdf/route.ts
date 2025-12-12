@@ -2,9 +2,9 @@ import { NextRequest } from 'next/server';
 import { supabaseAdmin } from '@/utils/supabaseAdmin';
 import { estimateToPdfBytes } from '@/lib/estimatePdf';
 
-export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(_req: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
-    const id = params.id;
+    const { id } = await context.params;
     const { data: est, error: estErr } = await supabaseAdmin
       .from('estimates')
       .select('id, user_id, created_at, subtotal, tax, total, po_number, jobs(name)')
