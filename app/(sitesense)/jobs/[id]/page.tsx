@@ -12,7 +12,7 @@ type Job = {
   client_name: string | null;
   status: string | null;
   created_at: string;
-  industries?: { name: string } | null;
+  industries?: { name: string }[] | null;
   property_address?: string | null;
   structure_type?: string | null;
   roof_type?: string | null;
@@ -578,7 +578,9 @@ export default function JobDetailPage() {
             <h1 className="text-3xl font-bold text-gray-900">{job.name}</h1>
             <p className="text-gray-600 text-sm mt-1">
               {job.client_name && <span>Client: {job.client_name} · </span>}
-              {job.industries?.name && <span>Industry: {job.industries.name} · </span>}
+              {Array.isArray(job.industries) && job.industries.length > 0 && (
+                <span>Industry: {job.industries[0].name} · </span>
+              )}
               <span className="capitalize">Status: {job.status || 'active'}</span>
             </p>
           </div>
