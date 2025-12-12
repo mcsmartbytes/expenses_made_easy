@@ -79,6 +79,47 @@ export default function ExpensesPage() {
     }
   }
 
+  async function handleEditSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!editingExpense) return;
+    setSaving(true);
+    try {
+      const { error } = await supabase
+        .from('expenses')
+        .update({
+          amount: parseFloat(editFormData.amount || '0'),
+          description: editFormData.description,
+          category_id: editFormData.category_id || null,
+          date: editFormData.date,
+          vendor: editFormData.vendor || null,
+          payment_method: editFormData.payment_method || null,
+          is_business: editFormData.is_business,
+          notes: editFormData.notes || null,
+          job_id: editFormData.job_id || null,
+        })
+        .eq('id', editingExpense.id);
+      if (error) throw error;
+
+      setExpenses(prev => prev.map(e => e.id === editingExpense.id ? {
+        ...e,
+        amount: parseFloat(editFormData.amount || '0'),
+        description: editFormData.description,
+        category_id: editFormData.category_id || undefined,
+        date: editFormData.date,
+        vendor: editFormData.vendor || null,
+        payment_method: editFormData.payment_method || undefined,
+        is_business: editFormData.is_business,
+        notes: editFormData.notes || undefined,
+        job_id: editFormData.job_id || null,
+      } : e));
+      setEditingExpense(null);
+    } catch (err) {
+      alert('Failed to save changes');
+    } finally {
+      setSaving(false);
+    }
+  }
+
   async function loadJobs() {
     try {
       const { data, error } = await supabase
