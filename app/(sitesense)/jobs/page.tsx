@@ -11,7 +11,7 @@ type Job = {
   client_name: string | null;
   status: string | null;
   created_at: string;
-  industries?: { name: string } | null;
+  industries?: { name: string }[] | null;
 };
 
 type Industry = { id: string; name: string };
@@ -56,7 +56,7 @@ export default function JobsPage() {
       console.error(error);
       setError('Failed to load jobs.');
     } else {
-      setJobs(data || []);
+      setJobs((data || []) as unknown as Job[]);
     }
 
     setLoading(false);
@@ -330,7 +330,7 @@ export default function JobsPage() {
                         {job.client_name || '—'}
                       </td>
                       <td className="px-4 py-2 text-gray-700">
-                        {job.industries?.name || '—'}
+                        {Array.isArray(job.industries) && job.industries.length > 0 ? job.industries[0].name : '—'}
                       </td>
                       <td className="px-4 py-2 capitalize">
                         <span
