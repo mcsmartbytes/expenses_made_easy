@@ -2,23 +2,43 @@ import { NextRequest } from 'next/server';
 import { supabaseAdmin } from '@/utils/supabaseAdmin';
 import { estimateToPdfBytes } from '@/lib/estimatePdf';
 
+type EstimateRecord = {
+  id: string;
+  user_id: string | null;
+  created_at: string;
+  subtotal: number | string;
+  tax: number | string;
+  total: number | string;
+  po_number: string | null;
+  jobs: { name: string } | { name: string }[] | null;
+};
+
+type EstimateItemRecord = {
+  description: string;
+  qty: number | string;
+  unit_price: number | string;
+  is_optional: boolean;
+};
+
 export async function GET(_req: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await context.params;
-    const { data: est, error: estErr } = await supabaseAdmin
+    const { data: estRaw, error: estErr } = await supabaseAdmin
       .from('estimates')
       .select('id, user_id, created_at, subtotal, tax, total, po_number, jobs(name)')
       .eq('id', id)
       .single();
+    const est = estRaw as EstimateRecord | null;
     if (estErr || !est) {
       return new Response(JSON.stringify({ error: 'Estimate not found' }), { status: 404 });
     }
 
-    const { data: items } = await supabaseAdmin
+    const { data: itemsRaw } = await supabaseAdmin
       .from('estimate_items')
       .select('description, qty, unit_price, is_optional')
       .eq('estimate_id', id)
       .order('sort_order');
+    const items = (itemsRaw || []) as EstimateItemRecord[];
 
     // Load branding from user profile
     let branding: { businessName?: string; companyEmail?: string; companyPhone?: string; companyAddress?: string; companyWebsite?: string } | undefined;
@@ -48,7 +68,7 @@ export async function GET(_req: NextRequest, context: { params: Promise<{ id: st
         tax: Number(est.tax),
         total: Number(est.total),
       },
-      (items || []).map((i: any) => ({
+      items.map((i) => ({
         description: i.description,
         qty: Number(i.qty),
         unit_price: Number(i.unit_price),
@@ -57,9 +77,11 @@ export async function GET(_req: NextRequest, context: { params: Promise<{ id: st
       jobName || undefined,
       est.po_number || undefined,
       branding
-    );
+    ) as Uint8Array<ArrayBuffer>;
 
-    return new Response(pdf, {
+    const pdfBlob = new Blob([pdf], { type: 'application/pdf' });
+
+    return new Response(pdfBlob, {
       status: 200,
       headers: {
         'Content-Type': 'application/pdf',

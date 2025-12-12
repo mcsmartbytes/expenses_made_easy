@@ -2,6 +2,32 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/utils/supabaseAdmin';
 import { estimateToPdfBytes } from '@/lib/estimatePdf';
 
+type EstimateRecord = {
+  id: string;
+  user_id: string | null;
+  job_id: string | null;
+  notes?: string | null;
+  status?: string | null;
+  subtotal: number | string;
+  tax: number | string;
+  total: number | string;
+  public_token: string;
+  po_number: string | null;
+  jobs: { name: string } | { name: string }[] | null;
+};
+
+type EstimateItemRecord = {
+  description: string;
+  qty: number | string;
+  unit_price: number | string;
+  is_optional: boolean;
+};
+
+type EstimateAttachmentRecord = {
+  url: string;
+  kind: string | null;
+};
+
 async function sendViaResend(to: string, subject: string, html: string) {
   const apiKey = process.env.RESEND_API_KEY;
   const from = process.env.FROM_EMAIL || 'estimates@localhost';
@@ -41,34 +67,37 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'Missing estimate_id or to_email' }, { status: 400 });
     }
 
-    const { data: est } = await supabaseAdmin
+    const { data: estRaw } = await supabaseAdmin
       .from('estimates')
       .select('id, user_id, job_id, notes, status, subtotal, tax, total, public_token, po_number, jobs(name)')
       .eq('id', estimate_id)
       .single();
+    const est = estRaw as EstimateRecord | null;
 
     if (!est) return NextResponse.json({ success: false, error: 'Estimate not found' }, { status: 404 });
 
-    const { data: items } = await supabaseAdmin
+    const { data: itemsRaw } = await supabaseAdmin
       .from('estimate_items')
       .select('description, qty, unit_price, is_optional')
       .eq('estimate_id', estimate_id)
       .order('sort_order');
+    const items = (itemsRaw || []) as EstimateItemRecord[];
 
-    const { data: atts } = await supabaseAdmin
+    const { data: attsRaw } = await supabaseAdmin
       .from('estimate_attachments')
       .select('url, kind')
       .eq('estimate_id', estimate_id)
       .order('created_at', { ascending: false });
+    const atts = (attsRaw || []) as EstimateAttachmentRecord[];
 
     const origin = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
     const publicUrl = `${origin}/estimates/public/${est.public_token}`;
 
-    const itemsHtml = (items || [])
-      .map((i: any) => `<tr><td>${i.description}</td><td style="text-align:right">${Number(i.qty).toFixed(2)}</td><td style="text-align:right">$${Number(i.unit_price).toFixed(2)}</td><td style="text-align:right">$${(Number(i.qty)*Number(i.unit_price)).toFixed(2)}</td><td style="text-align:right">${i.is_optional ? 'Optional' : ''}</td></tr>`) 
+    const itemsHtml = items
+      .map((i) => `<tr><td>${i.description}</td><td style="text-align:right">${Number(i.qty).toFixed(2)}</td><td style="text-align:right">$${Number(i.unit_price).toFixed(2)}</td><td style="text-align:right">$${(Number(i.qty) * Number(i.unit_price)).toFixed(2)}</td><td style="text-align:right">${i.is_optional ? 'Optional' : ''}</td></tr>`) 
       .join('');
-    const attsHtml = (atts || [])
-      .map((a: any) => `<a href="${a.url}"><img src="${a.url}" alt="Attachment" style="max-width:140px;margin:4px;border-radius:6px;border:1px solid #eee"/></a>`) 
+    const attsHtml = atts
+      .map((a) => `<a href="${a.url}"><img src="${a.url}" alt="Attachment" style="max-width:140px;margin:4px;border-radius:6px;border:1px solid #eee"/></a>`) 
       .join('');
 
     // Load branding
@@ -122,7 +151,7 @@ export async function POST(req: NextRequest) {
     try {
       const pdfBytes = estimateToPdfBytes(
         { id: est.id, subtotal: Number(est.subtotal), tax: Number(est.tax), total: Number(est.total) },
-        (items || []).map((i: any) => ({ description: i.description, qty: Number(i.qty), unit_price: Number(i.unit_price), is_optional: i.is_optional })),
+        items.map((i) => ({ description: i.description, qty: Number(i.qty), unit_price: Number(i.unit_price), is_optional: i.is_optional })),
         jobName,
         est.po_number || undefined,
         {

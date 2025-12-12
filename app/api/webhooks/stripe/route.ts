@@ -7,9 +7,19 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
 });
 
 // Use service role for admin operations
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+  console.warn('SUPABASE_SERVICE_ROLE_KEY missing for Stripe webhooks. Falling back to NEXT_PUBLIC_SUPABASE_ANON_KEY; set the service key in production.');
+}
+
+if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !supabaseKey) {
+  throw new Error('Supabase credentials are required for Stripe webhooks.');
+}
+
 const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
+  process.env.NEXT_PUBLIC_SUPABASE_URL,
+  supabaseKey
 );
 
 export async function POST(req: NextRequest) {

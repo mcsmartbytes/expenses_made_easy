@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { supabase } from '@/utils/supabase';
 import Navigation from '@/components/Navigation';
 
-type Row = { id: string; status: string; total: number; created_at: string; public_token: string; po_number: string | null; jobs: { name: string } | null };
+type Row = { id: string; status: string; total: number; created_at: string; public_token: string; po_number: string | null; jobs: { name: string } | { name: string }[] | null };
 
 export default function EstimatesListPage() {
   const [rows, setRows] = useState<Row[]>([]);
@@ -33,7 +33,7 @@ export default function EstimatesListPage() {
     const q = query.trim().toLowerCase();
     if (!q) return rows;
     return rows.filter(r =>
-      (r.jobs?.name || '').toLowerCase().includes(q) ||
+      ((Array.isArray(r.jobs) ? r.jobs[0]?.name : r.jobs?.name) || '').toLowerCase().includes(q) ||
       (r.status || '').toLowerCase().includes(q) ||
       (r.po_number || '').toLowerCase().includes(q) ||
       r.id.toLowerCase().includes(q)
@@ -76,7 +76,7 @@ export default function EstimatesListPage() {
               <tbody>
                 {filtered.map((r, idx) => (
                   <tr key={r.id} className={`border-t ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/40'}`}>
-                    <td className="px-4 py-2">{r.jobs?.name || '—'}</td>
+                    <td className="px-4 py-2">{Array.isArray(r.jobs) ? (r.jobs[0]?.name || '—') : (r.jobs?.name || '—')}</td>
                     <td className="px-4 py-2">{r.po_number || '—'}</td>
                     <td className="px-4 py-2 capitalize">{r.status}</td>
                     <td className="px-4 py-2 text-right">${r.total.toFixed(2)}</td>
