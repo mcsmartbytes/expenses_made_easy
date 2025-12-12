@@ -141,6 +141,18 @@ export default function ExpensesPage() {
     }
   }
 
+  async function deleteExpense(id: string) {
+    if (!confirm('Delete this expense?')) return;
+    try {
+      const { error } = await supabase.from('expenses').delete().eq('id', id);
+      if (error) throw error;
+      setExpenses(prev => prev.filter(e => e.id !== id));
+    } catch (err) {
+      alert('Failed to delete expense');
+      // no-op
+    }
+  }
+
   function getFilteredExpenses() {
     let filtered = expenses;
     if (filterType === 'business') filtered = filtered.filter(e => e.is_business);
