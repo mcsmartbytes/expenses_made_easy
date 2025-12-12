@@ -90,12 +90,14 @@ export async function POST(req: NextRequest) {
       };
     }
 
+    const jobName = Array.isArray(est.jobs) ? est.jobs[0]?.name : est.jobs?.name;
+
     const html = `
       <div style="font-family:system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#111">
         ${branding.logo_url ? `<div style=\"margin-bottom:8px\"><img src=\"${branding.logo_url}\" alt=\"Logo\" style=\"max-height:48px\"/></div>` : ''}
         ${branding.business_name ? `<h1 style=\"margin:0 0 6px;font-size:18px\">${branding.business_name}</h1>` : ''}
         ${(branding.company_email || branding.company_phone || branding.company_website) ? `<div style=\"color:#666;margin:0 0 12px;font-size:12px\">${[branding.company_email, branding.company_phone, branding.company_website].filter(Boolean).join(' • ')}</div>` : ''}
-        <h2 style="margin:0 0 4px">Estimate for ${est.jobs?.name || 'Job'}</h2>
+        <h2 style="margin:0 0 4px">Estimate for ${jobName || 'Job'}</h2>
         ${est.po_number ? `<p style=\"margin:0 0 8px;color:#555\"><strong>PO Number:</strong> ${est.po_number}</p>` : ''}
         <p style="margin:0 0 12px;color:#555">${message ? String(message) : 'Please review your estimate below.'}</p>
         <table style="width:100%;border-collapse:collapse;border:1px solid #eee">
@@ -121,7 +123,7 @@ export async function POST(req: NextRequest) {
       const pdfBytes = estimateToPdfBytes(
         { id: est.id, subtotal: Number(est.subtotal), tax: Number(est.tax), total: Number(est.total) },
         (items || []).map((i: any) => ({ description: i.description, qty: Number(i.qty), unit_price: Number(i.unit_price), is_optional: i.is_optional })),
-        est.jobs?.name,
+        jobName,
         est.po_number || undefined,
         {
           businessName: branding.business_name,
@@ -134,7 +136,7 @@ export async function POST(req: NextRequest) {
       pdfBase64 = Buffer.from(pdfBytes).toString('base64');
     } catch {}
 
-    const subject = `Estimate for ${est.jobs?.name || 'your project'}`;
+    const subject = `Estimate for ${jobName || 'your project'}`;
     if (process.env.SENDGRID_API_KEY) {
       await sendViaSendgrid(to_email, subject, html, pdfBase64, pdfName);
     } else {

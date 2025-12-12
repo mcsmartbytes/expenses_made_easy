@@ -38,6 +38,8 @@ export async function GET(_req: NextRequest, context: { params: Promise<{ id: st
       };
     }
 
+    const jobName = Array.isArray(est.jobs) ? est.jobs[0]?.name : est.jobs?.name;
+
     const pdf = estimateToPdfBytes(
       {
         id: est.id,
@@ -52,7 +54,7 @@ export async function GET(_req: NextRequest, context: { params: Promise<{ id: st
         unit_price: Number(i.unit_price),
         is_optional: i.is_optional,
       })),
-      est.jobs?.name || undefined,
+      jobName || undefined,
       est.po_number || undefined,
       branding
     );
