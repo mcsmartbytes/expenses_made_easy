@@ -27,6 +27,7 @@ type TimeEntry = {
   entry_date: string;
   hours: number;
   hourly_rate: number | null;
+  notes: string | null;
   job_id: string | null;
   jobs: { name: string } | null;
 };
@@ -94,7 +95,7 @@ export default function ExpenseDashboardPage() {
       // Time entries (per user)
       const { data: timeData, error: timeError } = await supabase
         .from('time_entries')
-        .select('id, entry_date, hours, hourly_rate, job_id, jobs(name)')
+        .select('id, entry_date, hours, hourly_rate, notes, job_id, jobs(name)')
         .eq('user_id', user.id)
         .order('entry_date', { ascending: false })
         .limit(20);
