@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { supabase } from '@/utils/supabase';
 import { canAddExpense } from '@/utils/subscription';
+import LineItemsEditor from '@/components/LineItemsEditor';
+import { LineItem, convertOCRLineItems, validateLineItemsTotal } from '@/lib/lineItems';
 
 interface Category {
   id: string;
@@ -42,6 +44,8 @@ export default function NewExpensePage() {
   const [subscriptionLimit, setSubscriptionLimit] = useState<{ allowed: boolean; message?: string; remaining?: number } | null>(null);
   const [ruleApplied, setRuleApplied] = useState<RuleMatch | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
+  const [lineItems, setLineItems] = useState<LineItem[]>([]);
+  const [showLineItems, setShowLineItems] = useState(false);
   const [formData, setFormData] = useState({
     amount: '',
     description: '',
@@ -272,10 +276,25 @@ export default function NewExpensePage() {
           date: result.data.date || prev.date,
           description: result.data.description || prev.description,
           payment_method: result.data.payment_method || prev.payment_method,
-          notes: result.data.items ? `Items: ${result.data.items.join(', ')}` : prev.notes,
         }));
 
-        alert('✅ Receipt scanned successfully! Review the auto-filled information.');
+        // Convert OCR line items to our format
+        if (result.data.line_items && Array.isArray(result.data.line_items)) {
+          const convertedItems: LineItem[] = result.data.line_items.map((item: any, index: number) => ({
+            item_name: item.name || '',
+            item_name_normalized: (item.name || '').toLowerCase().trim(),
+            quantity: parseFloat(item.quantity) || 1,
+            unit_price: parseFloat(item.unit_price) || 0,
+            line_total: parseFloat(item.line_total) || (parseFloat(item.quantity || 1) * parseFloat(item.unit_price || 0)),
+            unit_of_measure: item.unit || 'each',
+            is_taxable: true,
+            sort_order: index,
+          }));
+          setLineItems(convertedItems);
+          setShowLineItems(true);
+        }
+
+        alert('✅ Receipt scanned successfully! Review the auto-filled information and line items.');
       }
     } catch (error: any) {
       alert('❌ Failed to scan receipt: ' + (error.message || 'Unknown error'));
@@ -314,16 +333,40 @@ export default function NewExpensePage() {
         }
       }
 
-      const { error } = await supabase.from('expenses').insert({
+      const { data: expenseData, error } = await supabase.from('expenses').insert({
         ...formData,
         amount: parseFloat(formData.amount),
-        job_id: formData.job_id || null, // explicit, though formData already has it
+        job_id: formData.job_id || null,
         po_number: formData.po_number || null,
         receipt_url,
         user_id: user.id,
-      });
+      }).select().single();
 
       if (error) throw error;
+
+      // Save line items if any exist
+      if (lineItems.length > 0 && expenseData) {
+        try {
+          const res = await fetch('/api/line-items', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              expense_id: expenseData.id,
+              user_id: user.id,
+              line_items: lineItems,
+              vendor: formData.vendor,
+              purchase_date: formData.date,
+            }),
+          });
+          const lineItemsResult = await res.json();
+          if (!lineItemsResult.success) {
+            console.error('Failed to save line items:', lineItemsResult.error);
+          }
+        } catch (lineItemError) {
+          console.error('Error saving line items:', lineItemError);
+        }
+      }
+
       router.push('/expenses/dashboard');
     } catch (error: any) {
       alert(error.message || 'Failed to add expense');
@@ -652,6 +695,8 @@ export default function NewExpensePage() {
                   onChange={(e) => {
                     setReceiptFile(e.target.files?.[0] || null);
                     setOcrData(null); // Reset OCR data when new file is selected
+                    setLineItems([]); // Reset line items
+                    setShowLineItems(false);
                   }}
                   className="w-full px-4 py-2 border rounded-lg file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
                 />
@@ -670,6 +715,8 @@ export default function NewExpensePage() {
                           onClick={() => {
                             setReceiptFile(null);
                             setOcrData(null);
+                            setLineItems([]);
+                            setShowLineItems(false);
                           }}
                           className="text-xs text-red-600 hover:text-red-700 ml-2"
                         >
@@ -749,6 +796,56 @@ export default function NewExpensePage() {
                 </p>
               </div>
             </div>
+
+            {/* Line Items Editor */}
+            {(showLineItems || lineItems.length > 0) && userId && (
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="block text-sm font-medium">
+                    Receipt Line Items
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setShowLineItems(!showLineItems)}
+                    className="text-sm text-purple-600 hover:text-purple-700"
+                  >
+                    {showLineItems ? 'Hide' : 'Show'} Items
+                  </button>
+                </div>
+                {showLineItems && (
+                  <LineItemsEditor
+                    items={lineItems}
+                    onChange={setLineItems}
+                    userId={userId}
+                    vendor={formData.vendor}
+                  />
+                )}
+                {lineItems.length > 0 && (
+                  <p className="text-xs text-gray-500 mt-2">
+                    ✨ Line items will be saved with this expense and tracked for price history.
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* Manual Line Items Toggle */}
+            {!showLineItems && lineItems.length === 0 && userId && (
+              <div>
+                <button
+                  type="button"
+                  onClick={() => setShowLineItems(true)}
+                  className="text-sm text-purple-600 hover:text-purple-700 flex items-center gap-1"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                  </svg>
+                  Add line items manually
+                </button>
+                <p className="text-xs text-gray-500 mt-1">
+                  Track individual items and their prices over time
+                </p>
+              </div>
+            )}
 
             <div>
               <label className="block text-sm font-medium mb-2">Notes</label>

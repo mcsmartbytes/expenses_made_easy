@@ -33,6 +33,12 @@ export default function Navigation({ variant = 'expenses' }: { variant?: string 
           <Link href="/budgets" className="text-slate-200 hover:text-blue-400 transition-colors">
             Budgets
           </Link>
+          <Link href="/subscriptions" className="text-slate-200 hover:text-purple-400 transition-colors">
+            Subscriptions
+          </Link>
+          <Link href="/price-tracker" className="text-slate-200 hover:text-green-400 transition-colors">
+            Prices
+          </Link>
           <Link href="/receipts" className="text-slate-200 hover:text-blue-400 transition-colors">
             Receipts
           </Link>

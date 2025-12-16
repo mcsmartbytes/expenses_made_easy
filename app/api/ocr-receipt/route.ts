@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
             content: [
               {
                 type: 'text',
-                text: `Analyze this receipt image and extract the following information in JSON format:
+                text: `Analyze this receipt image and extract detailed information in JSON format:
                 {
                   "vendor": "merchant/vendor name",
                   "subtotal": "subtotal amount before tax as a number (no currency symbols)",
@@ -47,12 +47,29 @@ export async function POST(request: NextRequest) {
                   "amount": "total amount including tax as a number (no currency symbols)",
                   "date": "date in YYYY-MM-DD format",
                   "description": "brief description of purchase",
-                  "items": ["list of purchased items if visible"],
-                  "payment_method": "payment method if visible (credit, debit, cash, etc.), otherwise null"
+                  "payment_method": "payment method if visible (credit, debit, cash, etc.), otherwise null",
+                  "line_items": [
+                    {
+                      "name": "item name/description",
+                      "quantity": "quantity as a number (default 1 if not shown)",
+                      "unit_price": "price per unit as a number",
+                      "line_total": "total for this line as a number",
+                      "unit": "unit of measure if shown (ea, lb, oz, gal, etc.), otherwise null"
+                    }
+                  ]
                 }
 
-                If any field is not clearly visible, use null. Be precise with the amounts and date.
-                The subtotal should be the amount before tax, and amount should be the final total.`
+                IMPORTANT: For line_items, extract EVERY individual item/product on the receipt.
+                - Include the item name exactly as shown
+                - quantity: use the quantity shown, or 1 if not specified
+                - unit_price: the price per single unit
+                - line_total: quantity × unit_price (the extended price shown)
+                - unit: extract any unit of measure (lb, oz, gal, each, etc.)
+
+                If any field is not clearly visible, use null. Be precise with amounts and date.
+                The subtotal should be the amount before tax, and amount should be the final total.
+
+                For items like gas/fuel, extract the gallons as quantity and price per gallon as unit_price.`
               },
               {
                 type: 'image_url',
@@ -63,7 +80,7 @@ export async function POST(request: NextRequest) {
             ]
           }
         ],
-        max_tokens: 500,
+        max_tokens: 2000,
         temperature: 0.1,
       }),
     });
