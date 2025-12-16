@@ -43,7 +43,7 @@ export default function SignInPage() {
 
         // Use window.location for a full page reload to ensure session is loaded
         console.log('🔄 Redirecting now...');
-        window.location.href = '/expense-dashboard';
+        window.location.href = '/expenses/dashboard';
       } else {
         console.log('⚠️ No session returned');
         setMessage('Check your email to confirm your account, then sign in.');

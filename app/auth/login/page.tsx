@@ -28,7 +28,7 @@ export default function LoginPage() {
       if (data?.user) {
         // Check if there's a redirect parameter
         const params = new URLSearchParams(window.location.search);
-        const redirect = params.get('redirect') || '/expense-dashboard';
+        const redirect = params.get('redirect') || '/expenses/dashboard';
         router.push(redirect);
       }
     } catch (error: any) {

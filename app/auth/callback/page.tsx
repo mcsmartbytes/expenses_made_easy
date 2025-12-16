@@ -17,7 +17,7 @@ export default function AuthCallbackPage() {
         setStatus('error');
       } finally {
         setStatus('done');
-        router.replace('/expense-dashboard');
+        router.replace('/expenses/dashboard');
       }
     }
     handle();

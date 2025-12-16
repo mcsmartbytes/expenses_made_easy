@@ -22,7 +22,7 @@ export default function SignupPage() {
         email,
         password,
         options: {
-          emailRedirectTo: `${window.location.origin}/expense-dashboard`,
+          emailRedirectTo: `${window.location.origin}/expenses/dashboard`,
         },
       });
 
@@ -30,7 +30,7 @@ export default function SignupPage() {
 
       if (data?.user) {
         alert('Account created successfully! Please check your email to verify your account.');
-        router.push('/expense-dashboard');
+        router.push('/expenses/dashboard');
       }
     } catch (error: any) {
       setError(error.message || 'Failed to create account');

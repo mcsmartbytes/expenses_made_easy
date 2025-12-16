@@ -3,8 +3,8 @@ import type { Metadata, Viewport } from 'next'
 import InstallPrompt from '@/components/InstallPrompt'
 
 export const metadata: Metadata = {
-  title: 'SiteSense',
-  description: 'SiteSense helps small crews and contractors track jobs, time, and expenses in one place.',
+  title: 'Expenses Made Easy',
+  description: 'Track business expenses, mileage, and tax deductions with ease. IRS Schedule C compliant.',
   manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
@@ -16,9 +16,9 @@ export const metadata: Metadata = {
   },
   openGraph: {
     type: 'website',
-    siteName: 'SiteSense',
-    title: 'SiteSense',
-    description: 'SiteSense helps small crews and contractors track jobs, time, and expenses in one place.',
+    siteName: 'Expenses Made Easy',
+    title: 'Expenses Made Easy',
+    description: 'Track business expenses, mileage, and tax deductions with ease. IRS Schedule C compliant.',
   },
 }
 

@@ -324,7 +324,7 @@ export default function NewExpensePage() {
       });
 
       if (error) throw error;
-      router.push('/expense-dashboard');
+      router.push('/expenses/dashboard');
     } catch (error: any) {
       alert(error.message || 'Failed to add expense');
     } finally {
@@ -374,7 +374,7 @@ export default function NewExpensePage() {
           </div>
         )}
         <div className="mb-6">
-          <Link href="/expense-dashboard" className="text-blue-600 hover:text-blue-700">← Back to Dashboard</Link>
+          <Link href="/expenses/dashboard" className="text-blue-600 hover:text-blue-700">← Back to Dashboard</Link>
         </div>
 
         <div className="bg-white rounded-lg shadow p-6">
@@ -770,7 +770,7 @@ export default function NewExpensePage() {
                 {loading ? 'Adding...' : 'Add Expense'}
               </button>
               <Link
-                href="/expense-dashboard"
+                href="/expenses/dashboard"
                 className="flex-1 bg-gray-200 text-gray-700 py-3 rounded-lg font-semibold hover:bg-gray-300 text-center"
               >
                 Cancel

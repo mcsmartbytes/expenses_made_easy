@@ -278,7 +278,7 @@ export default function ProfilePage() {
         <div className="max-w-7xl mx-auto px-4 py-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center">
             <h1 className="text-2xl font-bold text-gray-900">Profile & Settings</h1>
-            <Link href="/expense-dashboard" className="text-blue-600 hover:text-blue-700">
+            <Link href="/expenses/dashboard" className="text-blue-600 hover:text-blue-700">
               ← Back to Dashboard
             </Link>
           </div>

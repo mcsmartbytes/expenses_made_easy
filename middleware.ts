@@ -8,7 +8,7 @@ export async function middleware(req: NextRequest) {
 
   // Protected routes that require authentication
   const protectedRoutes = [
-    '/expense-dashboard',
+    '/expenses/dashboard',
     '/expenses',
     '/mileage',
     '/profile',
@@ -35,7 +35,7 @@ export async function middleware(req: NextRequest) {
       req.nextUrl.pathname.startsWith('/auth/signup')) &&
     (accessToken || refreshToken)
   ) {
-    return NextResponse.redirect(new URL('/expense-dashboard', req.url));
+    return NextResponse.redirect(new URL('/expenses/dashboard', req.url));
   }
 
   return NextResponse.next();
@@ -43,7 +43,7 @@ export async function middleware(req: NextRequest) {
 
 export const config = {
   matcher: [
-    '/expense-dashboard/:path*',
+    '/expenses/dashboard/:path*',
     '/expenses/:path*',
     '/mileage/:path*',
     '/profile/:path*',
