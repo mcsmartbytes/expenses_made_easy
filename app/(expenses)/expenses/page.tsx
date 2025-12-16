@@ -60,6 +60,14 @@ export default function ExpensesPage() {
     job_id: '',
   });
   const [saving, setSaving] = useState(false);
+  const [showAddCategory, setShowAddCategory] = useState(false);
+  const [newCategory, setNewCategory] = useState({
+    name: '',
+    icon: '📁',
+    color: '#6366F1',
+    deduction_percentage: 0,
+  });
+  const [creatingCategory, setCreatingCategory] = useState(false);
 
   useEffect(() => {
     loadExpenses();
@@ -76,6 +84,52 @@ export default function ExpensesPage() {
       }
     } catch (error) {
       console.error('Error loading categories:', error);
+    }
+  }
+
+  async function handleCreateCategory() {
+    if (!newCategory.name.trim()) {
+      alert('Please enter a category name');
+      return;
+    }
+
+    setCreatingCategory(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        alert('Please sign in');
+        return;
+      }
+
+      const response = await fetch('/api/categories', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          categories: [{
+            name: newCategory.name.trim(),
+            icon: newCategory.icon,
+            color: newCategory.color,
+            deduction_percentage: newCategory.deduction_percentage,
+            is_tax_deductible: newCategory.deduction_percentage > 0,
+          }],
+          user_id: user.id,
+        }),
+      });
+
+      const result = await response.json();
+      if (result.success && result.data && result.data.length > 0) {
+        const createdCategory = result.data[0];
+        setCategories(prev => [...prev, createdCategory]);
+        setEditFormData(prev => ({ ...prev, category_id: createdCategory.id }));
+        setNewCategory({ name: '', icon: '📁', color: '#6366F1', deduction_percentage: 0 });
+        setShowAddCategory(false);
+      } else {
+        alert('Failed to create category: ' + (result.error || 'Unknown error'));
+      }
+    } catch (error: any) {
+      alert('Error creating category: ' + error.message);
+    } finally {
+      setCreatingCategory(false);
     }
   }
 
@@ -399,7 +453,20 @@ export default function ExpensesPage() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-right font-medium text-gray-900">${expense.amount.toFixed(2)}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-right space-x-3">
-                      <button onClick={() => setEditingExpense(expense)} className="text-blue-600 hover:text-blue-900">Edit</button>
+                      <button onClick={() => {
+                        setEditingExpense(expense);
+                        setEditFormData({
+                          amount: expense.amount.toString(),
+                          description: expense.description,
+                          category_id: expense.category_id || '',
+                          date: expense.date,
+                          vendor: expense.vendor || '',
+                          payment_method: expense.payment_method || 'credit',
+                          is_business: expense.is_business,
+                          notes: expense.notes || '',
+                          job_id: expense.job_id || '',
+                        });
+                      }} className="text-blue-600 hover:text-blue-900">Edit</button>
                       <button onClick={() => deleteExpense(expense.id)} className="text-red-600 hover:text-red-900">Delete</button>
                     </td>
                   </tr>
@@ -424,7 +491,7 @@ export default function ExpensesPage() {
             <div className="p-6">
               <div className="flex justify-between items-center mb-6">
                 <h2 className="text-xl font-bold text-gray-900">Edit Expense</h2>
-                <button onClick={() => setEditingExpense(null)} className="text-gray-400 hover:text-gray-600">
+                <button onClick={() => { setEditingExpense(null); setShowAddCategory(false); }} className="text-gray-400 hover:text-gray-600">
                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                   </svg>
@@ -445,7 +512,71 @@ export default function ExpensesPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium mb-1">Category</label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-sm font-medium">Category</label>
+                    <button
+                      type="button"
+                      onClick={() => setShowAddCategory(!showAddCategory)}
+                      className="text-xs text-purple-600 hover:text-purple-700 font-medium flex items-center gap-1"
+                    >
+                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                      </svg>
+                      Add Category
+                    </button>
+                  </div>
+
+                  {showAddCategory && (
+                    <div className="mb-2 p-3 bg-purple-50 border border-purple-200 rounded-lg">
+                      <div className="space-y-2">
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            value={newCategory.name}
+                            onChange={(e) => setNewCategory({ ...newCategory, name: e.target.value })}
+                            className="flex-1 px-2 py-1.5 border rounded text-sm focus:ring-2 focus:ring-purple-500"
+                            placeholder="Category name"
+                          />
+                          <select
+                            value={newCategory.icon}
+                            onChange={(e) => setNewCategory({ ...newCategory, icon: e.target.value })}
+                            className="w-16 px-1 py-1.5 border rounded text-sm"
+                          >
+                            <option value="📁">📁</option>
+                            <option value="🛒">🛒</option>
+                            <option value="⛽">⛽</option>
+                            <option value="🍽️">🍽️</option>
+                            <option value="🏠">🏠</option>
+                            <option value="🚗">🚗</option>
+                            <option value="💊">💊</option>
+                            <option value="👤">👤</option>
+                            <option value="🎁">🎁</option>
+                            <option value="🐕">🐕</option>
+                          </select>
+                        </div>
+                        <div className="flex gap-2">
+                          <select
+                            value={newCategory.deduction_percentage}
+                            onChange={(e) => setNewCategory({ ...newCategory, deduction_percentage: parseInt(e.target.value) })}
+                            className="flex-1 px-2 py-1.5 border rounded text-sm"
+                          >
+                            <option value={0}>0% - Personal</option>
+                            <option value={50}>50% - Meals</option>
+                            <option value={100}>100% - Business</option>
+                          </select>
+                          <button
+                            type="button"
+                            onClick={handleCreateCategory}
+                            disabled={creatingCategory || !newCategory.name.trim()}
+                            className="px-3 py-1.5 bg-purple-600 text-white rounded text-sm font-medium hover:bg-purple-700 disabled:opacity-50"
+                          >
+                            {creatingCategory ? '...' : 'Add'}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                   <select value={editFormData.category_id} onChange={(e) => setEditFormData({ ...editFormData, category_id: e.target.value })} className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
                     <option value="">Select a category</option>
                     {categories.map((cat) => (
@@ -498,7 +629,7 @@ export default function ExpensesPage() {
 
                 <div className="flex gap-3 pt-4">
                   <button type="submit" disabled={saving} className="flex-1 bg-blue-600 text-white py-2 rounded-lg font-semibold hover:bg-blue-700 disabled:opacity-50">{saving ? 'Saving...' : 'Save Changes'}</button>
-                  <button type="button" onClick={() => setEditingExpense(null)} className="flex-1 bg-gray-200 text-gray-700 py-2 rounded-lg font-semibold hover:bg-gray-300">Cancel</button>
+                  <button type="button" onClick={() => { setEditingExpense(null); setShowAddCategory(false); }} className="flex-1 bg-gray-200 text-gray-700 py-2 rounded-lg font-semibold hover:bg-gray-300">Cancel</button>
                 </div>
               </form>
             </div>
