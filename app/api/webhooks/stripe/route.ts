@@ -1,26 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
-import { createClient } from '@supabase/supabase-js';
+import { getSupabaseAdmin } from '@/utils/supabaseAdmin';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2023-10-16',
 });
-
-// Use service role for admin operations
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
-  console.warn('SUPABASE_SERVICE_ROLE_KEY missing for Stripe webhooks. Falling back to NEXT_PUBLIC_SUPABASE_ANON_KEY; set the service key in production.');
-}
-
-if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !supabaseKey) {
-  throw new Error('Supabase credentials are required for Stripe webhooks.');
-}
-
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  supabaseKey
-);
 
 export async function POST(req: NextRequest) {
   const body = await req.text();
@@ -80,6 +64,7 @@ export async function POST(req: NextRequest) {
 }
 
 async function handleCheckoutComplete(session: Stripe.Checkout.Session) {
+  const supabaseAdmin = getSupabaseAdmin();
   const userId = session.metadata?.user_id;
   const customerId = session.customer as string;
   const subscriptionId = session.subscription as string;
@@ -119,6 +104,7 @@ async function handleCheckoutComplete(session: Stripe.Checkout.Session) {
 }
 
 async function handleSubscriptionUpdate(subscription: Stripe.Subscription) {
+  const supabaseAdmin = getSupabaseAdmin();
   const customerId = subscription.customer as string;
   const plan = getPlanFromPriceId(subscription.items.data[0]?.price.id);
 
@@ -155,6 +141,7 @@ async function handleSubscriptionUpdate(subscription: Stripe.Subscription) {
 }
 
 async function handleSubscriptionCanceled(subscription: Stripe.Subscription) {
+  const supabaseAdmin = getSupabaseAdmin();
   const customerId = subscription.customer as string;
 
   const { data: profile } = await supabaseAdmin
@@ -182,6 +169,7 @@ async function handleSubscriptionCanceled(subscription: Stripe.Subscription) {
 }
 
 async function handlePaymentFailed(invoice: Stripe.Invoice) {
+  const supabaseAdmin = getSupabaseAdmin();
   const customerId = invoice.customer as string;
 
   const { data: profile } = await supabaseAdmin

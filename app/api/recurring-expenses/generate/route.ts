@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/utils/supabaseAdmin';
+import { getSupabaseAdmin } from '@/utils/supabaseAdmin';
 
 // POST - generate due recurring expenses
 export async function POST(request: NextRequest) {
   try {
+    const supabaseAdmin = getSupabaseAdmin();
     const body = await request.json();
     const { user_id } = body;
 

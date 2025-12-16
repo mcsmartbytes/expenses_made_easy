@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/utils/supabaseAdmin';
+import { getSupabaseAdmin } from '@/utils/supabaseAdmin';
 
 // GET - fetch all recurring expenses for a user
 export async function GET(request: NextRequest) {
   try {
+    const supabaseAdmin = getSupabaseAdmin();
     const { searchParams } = new URL(request.url);
     const userId = searchParams.get('user_id');
 
@@ -34,6 +35,7 @@ export async function GET(request: NextRequest) {
 // POST - create a new recurring expense
 export async function POST(request: NextRequest) {
   try {
+    const supabaseAdmin = getSupabaseAdmin();
     const body = await request.json();
     const {
       user_id,
@@ -91,6 +93,7 @@ export async function POST(request: NextRequest) {
 // PUT - update a recurring expense
 export async function PUT(request: NextRequest) {
   try {
+    const supabaseAdmin = getSupabaseAdmin();
     const body = await request.json();
     const { id, ...updates } = body;
 
@@ -127,6 +130,7 @@ export async function PUT(request: NextRequest) {
 // DELETE - delete a recurring expense
 export async function DELETE(request: NextRequest) {
   try {
+    const supabaseAdmin = getSupabaseAdmin();
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
 

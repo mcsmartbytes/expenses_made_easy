@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/utils/supabaseAdmin';
+import { getSupabaseAdmin } from '@/utils/supabaseAdmin';
 
 // GET - fetch all categories
 export async function GET() {
   try {
+    const supabaseAdmin = getSupabaseAdmin();
     const { data, error } = await supabaseAdmin
       .from('categories')
       .select('*')
@@ -23,6 +24,7 @@ export async function GET() {
 // POST - create one or more categories
 export async function POST(request: NextRequest) {
   try {
+    const supabaseAdmin = getSupabaseAdmin();
     const body = await request.json();
     const { categories, user_id } = body;
 
@@ -63,6 +65,7 @@ export async function POST(request: NextRequest) {
 // DELETE - delete a category by ID
 export async function DELETE(request: NextRequest) {
   try {
+    const supabaseAdmin = getSupabaseAdmin();
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
 
@@ -92,6 +95,7 @@ export async function DELETE(request: NextRequest) {
 // PUT - update a category
 export async function PUT(request: NextRequest) {
   try {
+    const supabaseAdmin = getSupabaseAdmin();
     const body = await request.json();
     const { id, ...updates } = body;
 

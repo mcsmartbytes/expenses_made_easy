@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/utils/supabaseAdmin';
+import { getSupabaseAdmin } from '@/utils/supabaseAdmin';
 import { estimateToPdfBytes } from '@/lib/estimatePdf';
 
 type EstimateRecord = {
@@ -62,6 +62,7 @@ async function sendViaSendgrid(to: string, subject: string, html: string, pdfBas
 
 export async function POST(req: NextRequest) {
   try {
+    const supabaseAdmin = getSupabaseAdmin();
     const { estimate_id, to_email, message } = await req.json();
     if (!estimate_id || !to_email) {
       return NextResponse.json({ success: false, error: 'Missing estimate_id or to_email' }, { status: 400 });

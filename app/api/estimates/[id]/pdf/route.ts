@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { supabaseAdmin } from '@/utils/supabaseAdmin';
+import { getSupabaseAdmin } from '@/utils/supabaseAdmin';
 import { estimateToPdfBytes } from '@/lib/estimatePdf';
 
 type EstimateRecord = {
@@ -22,6 +22,7 @@ type EstimateItemRecord = {
 
 export async function GET(_req: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
+    const supabaseAdmin = getSupabaseAdmin();
     const { id } = await context.params;
     const { data: estRaw, error: estErr } = await supabaseAdmin
       .from('estimates')
