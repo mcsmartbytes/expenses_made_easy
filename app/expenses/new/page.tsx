@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { supabase } from '@/utils/supabase';
@@ -21,6 +21,15 @@ interface Job {
   name: string;
 }
 
+interface RuleMatch {
+  rule_id: string;
+  category_id: string | null;
+  category_name: string | null;
+  category_icon: string | null;
+  is_business: boolean;
+  vendor_display_name: string | null;
+}
+
 export default function NewExpensePage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -31,6 +40,8 @@ export default function NewExpensePage() {
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
   const [ocrData, setOcrData] = useState<any>(null);
   const [subscriptionLimit, setSubscriptionLimit] = useState<{ allowed: boolean; message?: string; remaining?: number } | null>(null);
+  const [ruleApplied, setRuleApplied] = useState<RuleMatch | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     amount: '',
     description: '',
@@ -40,7 +51,7 @@ export default function NewExpensePage() {
     payment_method: 'credit',
     is_business: true,
     notes: '',
-    job_id: '', // NEW
+    job_id: '',
     po_number: '',
   });
 
@@ -48,7 +59,57 @@ export default function NewExpensePage() {
     loadCategories();
     loadJobs();
     checkSubscriptionLimit();
+    loadUserId();
   }, []);
+
+  async function loadUserId() {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) setUserId(user.id);
+  }
+
+  // Check for matching merchant rule when vendor changes
+  const checkMerchantRule = useCallback(async (vendor: string) => {
+    if (!userId || !vendor || vendor.length < 3) {
+      setRuleApplied(null);
+      return;
+    }
+
+    try {
+      const res = await fetch('/api/merchant-rules/match', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: userId, vendor }),
+      });
+      const data = await res.json();
+
+      if (data.success && data.match) {
+        const match = data.match as RuleMatch;
+        setRuleApplied(match);
+
+        // Auto-fill category and business flag
+        setFormData(prev => ({
+          ...prev,
+          category_id: match.category_id || prev.category_id,
+          is_business: match.is_business,
+        }));
+      } else {
+        setRuleApplied(null);
+      }
+    } catch (error) {
+      console.error('Error checking merchant rule:', error);
+    }
+  }, [userId]);
+
+  // Debounced vendor change handler
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (formData.vendor) {
+        checkMerchantRule(formData.vendor);
+      }
+    }, 500); // 500ms debounce
+
+    return () => clearTimeout(timer);
+  }, [formData.vendor, checkMerchantRule]);
 
   async function checkSubscriptionLimit() {
     const { data: { user } } = await supabase.auth.getUser();
@@ -501,6 +562,27 @@ export default function NewExpensePage() {
                 className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
                 placeholder="Where did you make this purchase?"
               />
+              {ruleApplied && (
+                <div className="mt-2 p-3 bg-green-50 border border-green-200 rounded-lg">
+                  <div className="flex items-center gap-2 text-sm text-green-800">
+                    <span className="text-lg">✨</span>
+                    <span>
+                      <strong>Auto-filled!</strong> Matched rule for &quot;{formData.vendor}&quot;
+                      {ruleApplied.category_name && (
+                        <> → {ruleApplied.category_icon} {ruleApplied.category_name}</>
+                      )}
+                      {' '}({ruleApplied.is_business ? 'Business' : 'Personal'})
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setRuleApplied(null)}
+                    className="text-xs text-green-600 hover:text-green-700 mt-1"
+                  >
+                    Dismiss
+                  </button>
+                </div>
+              )}
             </div>
 
             <div>

@@ -33,6 +33,9 @@ export default function Navigation({ variant = 'sitesense' }: { variant?: Varian
               <Link href="/expenses" className="text-slate-200 hover:text-blue-400 transition-colors">
                 Expenses
               </Link>
+              <Link href="/projects" className="text-slate-200 hover:text-blue-400 transition-colors">
+                Projects
+              </Link>
               <Link href="/budgets" className="text-slate-200 hover:text-blue-400 transition-colors">
                 Budgets
               </Link>
@@ -42,8 +45,8 @@ export default function Navigation({ variant = 'sitesense' }: { variant?: Varian
               <Link href="/mileage" className="text-slate-200 hover:text-blue-400 transition-colors">
                 Mileage
               </Link>
-              <Link href="/profile" className="text-slate-200 hover:text-blue-400 transition-colors">
-                Profile
+              <Link href="/reports" className="text-slate-200 hover:text-blue-400 transition-colors">
+                Reports
               </Link>
               <Link href="/settings" className="text-slate-200 hover:text-blue-400 transition-colors">
                 Settings

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Navigation from '@/components/Navigation';
+import MerchantRulesManager from '@/components/MerchantRulesManager';
 import { supabase } from '@/utils/supabase';
 
 export default function SettingsPage() {
@@ -102,6 +103,11 @@ export default function SettingsPage() {
               </div>
             </div>
           </div>
+        </div>
+
+        <div className="bg-white rounded-lg shadow p-6 mb-6">
+          <h2 className="text-xl font-semibold mb-4">Merchant Rules</h2>
+          <MerchantRulesManager />
         </div>
 
         <div className="flex items-center gap-4">

@@ -3,6 +3,8 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import Navigation from '@/components/Navigation';
+import SpendingInsights from '@/components/SpendingInsights';
+import PredictiveAlerts from '@/components/PredictiveAlerts';
 import { supabase } from '@/utils/supabase';
 
 type Expense = {
@@ -217,6 +219,12 @@ export default function ExpensesDashboardPage() {
               </ul>
             )}
           </div>
+        </section>
+
+        {/* Spending Insights & Predictive Alerts */}
+        <section className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <SpendingInsights />
+          <PredictiveAlerts />
         </section>
 
         {/* Quick Start CTAs */}

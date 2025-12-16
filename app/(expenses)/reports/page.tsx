@@ -20,16 +20,80 @@ interface MileageReport {
   trip_count: number;
 }
 
+interface YearEndSummary {
+  year: number;
+  total_expenses: number;
+  total_business_expenses: number;
+  total_personal_expenses: number;
+  total_deductible: number;
+  estimated_tax_savings: number;
+  mileage_total_miles: number;
+  mileage_total_deduction: number;
+  by_quarter: Array<{
+    quarter: number;
+    label: string;
+    total: number;
+    business: number;
+    personal: number;
+    expense_count: number;
+  }>;
+  top_categories: Array<{
+    name: string;
+    icon: string;
+    total: number;
+    count: number;
+    percentage: number;
+  }>;
+}
+
 export default function ReportsPage() {
   const [loading, setLoading] = useState(true);
   const [taxReport, setTaxReport] = useState<TaxReport[]>([]);
   const [mileageReport, setMileageReport] = useState<MileageReport | null>(null);
+  const [yearEndSummary, setYearEndSummary] = useState<YearEndSummary | null>(null);
+  const [loadingYearEnd, setLoadingYearEnd] = useState(false);
+  const [showYearEnd, setShowYearEnd] = useState(false);
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [dateRange, setDateRange] = useState({
     start: new Date(new Date().getFullYear(), 0, 1).toISOString().split('T')[0],
     end: new Date().toISOString().split('T')[0],
   });
 
   useEffect(() => { loadReports(); }, [dateRange]);
+
+  async function loadYearEndSummary(year: number) {
+    setLoadingYearEnd(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const res = await fetch(`/api/exports/year-end?user_id=${user.id}&year=${year}`);
+      const data = await res.json();
+
+      if (data.success) {
+        setYearEndSummary(data.data);
+        setShowYearEnd(true);
+      }
+    } catch (error) {
+      console.error('Error loading year-end summary:', error);
+    } finally {
+      setLoadingYearEnd(false);
+    }
+  }
+
+  async function exportYearEndCSV() {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const res = await fetch(`/api/exports/year-end?user_id=${user.id}&year=${selectedYear}&format=csv`);
+    const blob = await res.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `year-end-summary-${selectedYear}.csv`;
+    a.click();
+    window.URL.revokeObjectURL(url);
+  }
 
   async function loadReports() {
     setLoading(true);
@@ -231,6 +295,129 @@ export default function ReportsPage() {
                 </div>
               </div>
             )}
+
+            {/* Year-End Summary Section */}
+            <div className="bg-white rounded-xl shadow-lg border-2 border-gray-200 mt-8">
+              <div className="px-6 py-5 border-b-2 border-gray-200 bg-gradient-to-r from-purple-50 to-blue-50">
+                <div className="flex flex-wrap items-center justify-between gap-4">
+                  <div>
+                    <h2 className="text-xl font-bold text-gray-900">Year-End Tax Summary</h2>
+                    <p className="text-sm text-gray-600 mt-1">Complete annual breakdown for tax filing</p>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <select
+                      value={selectedYear}
+                      onChange={(e) => setSelectedYear(parseInt(e.target.value))}
+                      className="px-4 py-2 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 bg-white"
+                    >
+                      {[...Array(5)].map((_, i) => {
+                        const year = new Date().getFullYear() - i;
+                        return <option key={year} value={year}>{year}</option>;
+                      })}
+                    </select>
+                    <button
+                      onClick={() => loadYearEndSummary(selectedYear)}
+                      disabled={loadingYearEnd}
+                      className="px-5 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {loadingYearEnd ? 'Loading...' : 'Generate Summary'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {showYearEnd && yearEndSummary && (
+                <div className="p-6 space-y-6">
+                  {/* Summary Cards */}
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
+                      <p className="text-xs font-semibold text-blue-700 uppercase">Total Expenses</p>
+                      <p className="text-2xl font-bold text-blue-900">${yearEndSummary.total_expenses.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                    </div>
+                    <div className="bg-sky-50 rounded-lg p-4 border border-sky-200">
+                      <p className="text-xs font-semibold text-sky-700 uppercase">Business</p>
+                      <p className="text-2xl font-bold text-sky-900">${yearEndSummary.total_business_expenses.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                    </div>
+                    <div className="bg-green-50 rounded-lg p-4 border border-green-200">
+                      <p className="text-xs font-semibold text-green-700 uppercase">Total Deductible</p>
+                      <p className="text-2xl font-bold text-green-900">${yearEndSummary.total_deductible.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                    </div>
+                    <div className="bg-emerald-50 rounded-lg p-4 border border-emerald-200">
+                      <p className="text-xs font-semibold text-emerald-700 uppercase">Est. Tax Savings</p>
+                      <p className="text-2xl font-bold text-emerald-900">${yearEndSummary.estimated_tax_savings.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                    </div>
+                  </div>
+
+                  {/* Mileage Summary */}
+                  {yearEndSummary.mileage_total_miles > 0 && (
+                    <div className="bg-indigo-50 rounded-lg p-4 border border-indigo-200">
+                      <p className="text-sm font-semibold text-indigo-900 mb-2">Mileage Deductions</p>
+                      <div className="flex gap-6 text-sm">
+                        <span><strong>{yearEndSummary.mileage_total_miles.toFixed(1)}</strong> miles</span>
+                        <span><strong>${yearEndSummary.mileage_total_deduction.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong> deduction</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Quarterly Breakdown */}
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-3">Quarterly Breakdown</h3>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                      {yearEndSummary.by_quarter.map((q) => (
+                        <div key={q.quarter} className="bg-gray-50 rounded-lg p-3 border border-gray-200">
+                          <p className="text-xs font-semibold text-gray-600 mb-1">{q.label}</p>
+                          <p className="text-lg font-bold text-gray-900">${q.total.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</p>
+                          <div className="text-xs text-gray-500 mt-1">
+                            <span className="text-sky-600">${q.business.toFixed(0)} biz</span> · <span className="text-slate-500">${q.personal.toFixed(0)} pers</span>
+                          </div>
+                          <p className="text-xs text-gray-400">{q.expense_count} expenses</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Top Categories */}
+                  {yearEndSummary.top_categories.length > 0 && (
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-900 mb-3">Top Expense Categories</h3>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                        {yearEndSummary.top_categories.map((cat) => (
+                          <div key={cat.name} className="flex items-center justify-between bg-gray-50 rounded-lg px-4 py-2 border border-gray-200">
+                            <div className="flex items-center gap-2">
+                              <span className="text-lg">{cat.icon}</span>
+                              <span className="font-medium text-gray-900">{cat.name}</span>
+                            </div>
+                            <div className="text-right">
+                              <span className="font-semibold text-gray-900">${cat.total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                              <span className="text-xs text-gray-500 ml-2">({cat.percentage.toFixed(1)}%)</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Export Button */}
+                  <div className="pt-4 border-t border-gray-200 flex justify-end">
+                    <button
+                      onClick={exportYearEndCSV}
+                      className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition font-semibold flex items-center gap-2"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                      Download Year-End CSV
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {!showYearEnd && (
+                <div className="p-12 text-center text-gray-500">
+                  <svg className="w-12 h-12 mx-auto mb-3 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                  <p className="text-lg mb-1">Generate your year-end summary</p>
+                  <p className="text-sm">Select a year and click "Generate Summary" to see your complete tax breakdown</p>
+                </div>
+              )}
+            </div>
           </>
         )}
         <div className="mt-8 bg-blue-50 border border-blue-200 rounded-lg p-4">
