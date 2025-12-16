@@ -46,6 +46,15 @@ export default function NewExpensePage() {
   const [userId, setUserId] = useState<string | null>(null);
   const [lineItems, setLineItems] = useState<LineItem[]>([]);
   const [showLineItems, setShowLineItems] = useState(false);
+  const [showAddCategory, setShowAddCategory] = useState(false);
+  const [newCategory, setNewCategory] = useState({
+    name: '',
+    icon: '📁',
+    color: '#6366F1',
+    deduction_percentage: 0,
+    is_tax_deductible: false,
+  });
+  const [creatingCategory, setCreatingCategory] = useState(false);
   const [formData, setFormData] = useState({
     amount: '',
     description: '',
@@ -206,6 +215,61 @@ export default function NewExpensePage() {
       console.error('Error loading categories:', error);
     } finally {
       setLoadingCategories(false);
+    }
+  }
+
+  async function handleCreateCategory() {
+    if (!newCategory.name.trim()) {
+      alert('Please enter a category name');
+      return;
+    }
+
+    setCreatingCategory(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        alert('Please sign in');
+        return;
+      }
+
+      const response = await fetch('/api/categories', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          categories: [{
+            name: newCategory.name.trim(),
+            icon: newCategory.icon,
+            color: newCategory.color,
+            deduction_percentage: newCategory.deduction_percentage,
+            is_tax_deductible: newCategory.deduction_percentage > 0,
+          }],
+          user_id: user.id,
+        }),
+      });
+
+      const result = await response.json();
+      if (result.success && result.data && result.data.length > 0) {
+        // Add to categories list and select it
+        const createdCategory = result.data[0];
+        setCategories(prev => [...prev, createdCategory]);
+        setFormData(prev => ({ ...prev, category_id: createdCategory.id }));
+
+        // Reset form
+        setNewCategory({
+          name: '',
+          icon: '📁',
+          color: '#6366F1',
+          deduction_percentage: 0,
+          is_tax_deductible: false,
+        });
+        setShowAddCategory(false);
+      } else {
+        alert('Failed to create category: ' + (result.error || 'Unknown error'));
+      }
+    } catch (error: any) {
+      alert('Error creating category: ' + error.message);
+    } finally {
+      setCreatingCategory(false);
     }
   }
 
@@ -453,7 +517,108 @@ export default function NewExpensePage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-2">Category *</label>
+              <div className="flex items-center justify-between mb-2">
+                <label className="block text-sm font-medium">Category *</label>
+                <button
+                  type="button"
+                  onClick={() => setShowAddCategory(!showAddCategory)}
+                  className="text-sm text-purple-600 hover:text-purple-700 font-medium flex items-center gap-1"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                  </svg>
+                  Add Category
+                </button>
+              </div>
+
+              {/* Add Category Form */}
+              {showAddCategory && (
+                <div className="mb-3 p-4 bg-purple-50 border border-purple-200 rounded-lg">
+                  <h4 className="text-sm font-semibold text-purple-900 mb-3">Create New Category</h4>
+                  <div className="space-y-3">
+                    <div className="flex gap-3">
+                      <div className="flex-1">
+                        <label className="block text-xs font-medium text-gray-700 mb-1">Name</label>
+                        <input
+                          type="text"
+                          value={newCategory.name}
+                          onChange={(e) => setNewCategory({ ...newCategory, name: e.target.value })}
+                          className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 text-sm"
+                          placeholder="e.g., Groceries, Gas, Personal"
+                        />
+                      </div>
+                      <div className="w-20">
+                        <label className="block text-xs font-medium text-gray-700 mb-1">Icon</label>
+                        <select
+                          value={newCategory.icon}
+                          onChange={(e) => setNewCategory({ ...newCategory, icon: e.target.value })}
+                          className="w-full px-2 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 text-sm"
+                        >
+                          <option value="📁">📁</option>
+                          <option value="🛒">🛒</option>
+                          <option value="⛽">⛽</option>
+                          <option value="🍽️">🍽️</option>
+                          <option value="🏠">🏠</option>
+                          <option value="🚗">🚗</option>
+                          <option value="✈️">✈️</option>
+                          <option value="💊">💊</option>
+                          <option value="👔">👔</option>
+                          <option value="🎮">🎮</option>
+                          <option value="📱">📱</option>
+                          <option value="💡">💡</option>
+                          <option value="🎓">🎓</option>
+                          <option value="💼">💼</option>
+                          <option value="🏥">🏥</option>
+                          <option value="👤">👤</option>
+                          <option value="🎁">🎁</option>
+                          <option value="🐕">🐕</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div className="flex gap-3">
+                      <div className="w-24">
+                        <label className="block text-xs font-medium text-gray-700 mb-1">Color</label>
+                        <input
+                          type="color"
+                          value={newCategory.color}
+                          onChange={(e) => setNewCategory({ ...newCategory, color: e.target.value })}
+                          className="w-full h-9 border rounded-lg cursor-pointer"
+                        />
+                      </div>
+                      <div className="flex-1">
+                        <label className="block text-xs font-medium text-gray-700 mb-1">Tax Deductible %</label>
+                        <select
+                          value={newCategory.deduction_percentage}
+                          onChange={(e) => setNewCategory({ ...newCategory, deduction_percentage: parseInt(e.target.value) })}
+                          className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 text-sm"
+                        >
+                          <option value={0}>0% - Not Deductible (Personal)</option>
+                          <option value={50}>50% - Partially Deductible (Meals)</option>
+                          <option value={100}>100% - Fully Deductible (Business)</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div className="flex justify-end gap-2 pt-2">
+                      <button
+                        type="button"
+                        onClick={() => setShowAddCategory(false)}
+                        className="px-3 py-1.5 text-sm text-gray-600 hover:text-gray-800"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleCreateCategory}
+                        disabled={creatingCategory || !newCategory.name.trim()}
+                        className="px-4 py-1.5 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700 disabled:opacity-50"
+                      >
+                        {creatingCategory ? 'Creating...' : 'Create Category'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <select
                 required
                 value={formData.category_id}
