@@ -5,6 +5,8 @@ import { useEffect, useState } from 'react';
 import Navigation from '@/components/Navigation';
 import SpendingInsights from '@/components/SpendingInsights';
 import PredictiveAlerts from '@/components/PredictiveAlerts';
+import GamificationWidget from '@/components/GamificationWidget';
+import ActionableInsights from '@/components/ActionableInsights';
 import { supabase } from '@/utils/supabase';
 
 type Expense = {
@@ -30,6 +32,7 @@ export default function ExpensesDashboardPage() {
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [hasCategories, setHasCategories] = useState<boolean | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
 
   useEffect(() => {
     void loadData();
@@ -45,6 +48,7 @@ export default function ExpensesDashboardPage() {
         setLoading(false);
         return;
       }
+      setUserId(user.id);
 
       const startOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1)
         .toISOString()
@@ -172,6 +176,16 @@ export default function ExpensesDashboardPage() {
             <p className="mt-2 text-3xl font-bold text-emerald-300">{budgets.length}</p>
           </div>
         </section>
+
+        {/* Gamification & Smart Insights */}
+        {userId && (
+          <section className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <GamificationWidget userId={userId} variant="full" />
+            <div className="lg:col-span-2">
+              <ActionableInsights userId={userId} />
+            </div>
+          </section>
+        )}
 
         <section className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 rounded-xl border border-slate-700 bg-slate-800 overflow-hidden">

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { LineItem, formatPrice, formatQuantity, detectPriceChange } from '@/lib/lineItems';
+import { ItemMemory, MemorySuggestion } from '@/lib/moneyMemory';
 
 interface PriceAlert {
   item_name: string;
@@ -10,6 +11,11 @@ interface PriceAlert {
   change_pct: number;
   previous_date: string;
   previous_vendor?: string;
+}
+
+interface MemoryData {
+  memories: Record<string, ItemMemory>;
+  suggestions: MemorySuggestion[];
 }
 
 interface LineItemsEditorProps {
@@ -29,8 +35,10 @@ export default function LineItemsEditor({
 }: LineItemsEditorProps) {
   const [priceAlerts, setPriceAlerts] = useState<Map<string, PriceAlert>>(new Map());
   const [loadingPrices, setLoadingPrices] = useState(false);
+  const [memoryData, setMemoryData] = useState<MemoryData | null>(null);
+  const [showMemoryTips, setShowMemoryTips] = useState(true);
 
-  // Fetch price history for items to check for price changes
+  // Fetch price history for items to check for price changes and memory suggestions
   useEffect(() => {
     async function checkPriceHistory() {
       if (items.length === 0 || !userId) return;
@@ -79,6 +87,30 @@ export default function LineItemsEditor({
         }
 
         setPriceAlerts(alerts);
+
+        // Fetch memory suggestions for items
+        const itemNames = items
+          .filter(item => item.item_name.trim())
+          .map(item => item.item_name)
+          .join(',');
+
+        if (itemNames) {
+          const memoryParams = new URLSearchParams({
+            user_id: userId,
+            items: itemNames,
+          });
+          if (vendor) memoryParams.set('vendor', vendor);
+
+          const memoryRes = await fetch(`/api/memory-suggestions?${memoryParams}`);
+          const memoryResult = await memoryRes.json();
+
+          if (memoryResult.success) {
+            setMemoryData({
+              memories: memoryResult.memories || {},
+              suggestions: memoryResult.suggestions || [],
+            });
+          }
+        }
       } catch (error) {
         console.error('Error checking price history:', error);
       } finally {
@@ -87,7 +119,7 @@ export default function LineItemsEditor({
     }
 
     checkPriceHistory();
-  }, [items, userId]);
+  }, [items, userId, vendor]);
 
   const handleItemChange = (index: number, field: keyof LineItem, value: string | number) => {
     const updated = [...items];
@@ -179,6 +211,51 @@ export default function LineItemsEditor({
                 Prices differ from your last purchase. See highlights below.
               </p>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Money Memory Suggestions */}
+      {showMemoryTips && memoryData && memoryData.suggestions.length > 0 && (
+        <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+          <div className="flex items-start justify-between gap-2">
+            <div className="flex items-start gap-2 flex-1">
+              <span className="text-lg flex-shrink-0">💡</span>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-blue-800">
+                  Money Memory Tips
+                </p>
+                <div className="mt-2 space-y-1.5">
+                  {memoryData.suggestions.slice(0, 3).map((suggestion, idx) => (
+                    <div
+                      key={idx}
+                      className={`text-xs px-2 py-1.5 rounded ${
+                        suggestion.priority === 'high'
+                          ? 'bg-red-100 text-red-700'
+                          : suggestion.priority === 'medium'
+                          ? 'bg-amber-100 text-amber-700'
+                          : 'bg-white text-gray-600'
+                      }`}
+                    >
+                      {suggestion.type === 'savings_tip' && '💵 '}
+                      {suggestion.type === 'price_alert' && '📈 '}
+                      {suggestion.type === 'vendor_suggestion' && '🏪 '}
+                      {suggestion.message}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowMemoryTips(false)}
+              className="p-1 hover:bg-blue-100 rounded transition-colors flex-shrink-0"
+              title="Dismiss tips"
+            >
+              <svg className="w-4 h-4 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
           </div>
         </div>
       )}

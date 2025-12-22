@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { supabase } from '@/utils/supabase';
 import { INDUSTRY_CATEGORIES, IndustryKey } from '@/utils/industryCategories';
+import AchievementsGallery from '@/components/AchievementsGallery';
 
 interface Category {
   id: string;
@@ -61,6 +62,7 @@ export default function ProfilePage() {
     color: '#3B82F6',
     is_tax_deductible: true,
   });
+  const [userId, setUserId] = useState<string | null>(null);
 
   useEffect(() => {
     loadProfile();
@@ -70,6 +72,7 @@ export default function ProfilePage() {
   async function loadProfile() {
     const { data: { user } } = await supabase.auth.getUser();
     if (user) {
+      setUserId(user.id);
       setProfile({
         email: user.email || '',
         created_at: user.created_at,
@@ -597,6 +600,11 @@ export default function ProfilePage() {
             ))}
           </div>
         </div>
+
+        {/* Achievements & Gamification */}
+        {userId && (
+          <AchievementsGallery userId={userId} />
+        )}
       </main>
     </div>
   );

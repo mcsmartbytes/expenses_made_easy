@@ -14,6 +14,7 @@ import {
   LearningSuggestion,
   CorrectionContext,
 } from '@/lib/learningDetection';
+import AchievementToast from '@/components/AchievementToast';
 
 interface Category {
   id: string;
@@ -67,6 +68,13 @@ export default function NewExpensePage() {
   const [showLearningModal, setShowLearningModal] = useState(false);
   const [learningSuggestion, setLearningSuggestion] = useState<LearningSuggestion | null>(null);
   const [pendingRedirect, setPendingRedirect] = useState(false);
+
+  // Gamification state
+  const [achievementToast, setAchievementToast] = useState<{
+    achievements: Array<{ id: string; name: string; icon: string; xpReward: number }>;
+    levelUp: { level: number; name: string; icon: string } | null;
+    xpAwarded: number;
+  } | null>(null);
 
   const [formData, setFormData] = useState({
     amount: '',
@@ -442,6 +450,42 @@ export default function NewExpensePage() {
         } catch (lineItemError) {
           console.error('Error saving line items:', lineItemError);
         }
+      }
+
+      // Award XP for logging expense
+      try {
+        const selectedCategory = categories.find(c => c.id === formData.category_id);
+        const deductionAmount = selectedCategory?.deduction_percentage
+          ? parseFloat(formData.amount) * (selectedCategory.deduction_percentage / 100)
+          : 0;
+
+        const gamificationRes = await fetch('/api/gamification', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            user_id: user.id,
+            action: receiptFile ? 'scan_receipt' : 'log_expense',
+            additionalData: {
+              deductionAmount,
+              isQuickLog: false, // TODO: Check if logged within 1 hour of transaction
+            },
+          }),
+        });
+
+        const gamificationResult = await gamificationRes.json();
+        if (gamificationResult.success) {
+          // Show achievement toast if there are achievements or level up
+          if (gamificationResult.newAchievements?.length > 0 || gamificationResult.leveledUp) {
+            setAchievementToast({
+              achievements: gamificationResult.newAchievements || [],
+              levelUp: gamificationResult.newLevel || null,
+              xpAwarded: gamificationResult.xpAwarded || 0,
+            });
+          }
+        }
+      } catch (gamificationError) {
+        console.error('Error awarding XP:', gamificationError);
+        // Don't fail the expense creation if gamification fails
       }
 
       // Check for learning opportunity - only if no rule was applied
@@ -1101,6 +1145,18 @@ export default function NewExpensePage() {
           categories={categories}
           vendor={formData.vendor}
           userId={userId}
+        />
+      )}
+
+      {/* Achievement Toast */}
+      {achievementToast && (
+        <AchievementToast
+          achievements={achievementToast.achievements}
+          levelUp={achievementToast.levelUp}
+          xpAwarded={achievementToast.xpAwarded}
+          onDismiss={() => setAchievementToast(null)}
+          autoHide={true}
+          autoHideDelay={5000}
         />
       )}
     </div>

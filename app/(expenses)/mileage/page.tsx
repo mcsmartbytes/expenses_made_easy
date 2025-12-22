@@ -69,6 +69,7 @@ export default function MileagePage() {
   const totalAmount = filteredTrips.reduce((sum, t) => sum + t.amount, 0);
   const businessMiles = filteredTrips.filter(t => t.is_business).reduce((sum, t) => sum + t.distance, 0);
   const personalMiles = filteredTrips.filter(t => !t.is_business).reduce((sum, t) => sum + t.distance, 0);
+  const taxDeduction = businessMiles * 0.67; // 2024 IRS rate
 
   function startSpeedMonitoring() {
     if (!navigator.geolocation) { alert('Geolocation is not supported by your browser'); return; }
@@ -177,11 +178,50 @@ export default function MileagePage() {
           {!isTracking && (<button onClick={handleStartTracking} className="w-full px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold">Start Manual Tracking</button>)}
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        {/* Tax Deduction Summary Banner */}
+        {businessMiles > 0 && (
+          <div className="bg-gradient-to-r from-emerald-500 to-green-600 rounded-xl p-5 mb-6 text-white shadow-lg">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div>
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-2xl">💰</span>
+                  <h3 className="text-lg font-bold">Tax Deduction Tracker</h3>
+                </div>
+                <p className="text-emerald-100 text-sm">
+                  Your {businessMiles.toFixed(1)} business miles = <span className="font-bold text-white">${taxDeduction.toFixed(2)}</span> in tax deductions at $0.67/mile (2024 IRS rate)
+                </p>
+              </div>
+              <div className="text-right">
+                <p className="text-3xl font-bold">${taxDeduction.toFixed(2)}</p>
+                <p className="text-xs text-emerald-200 uppercase tracking-wide">Potential Savings</p>
+              </div>
+            </div>
+            <div className="mt-4 grid grid-cols-3 gap-4 pt-4 border-t border-white/20">
+              <div className="text-center">
+                <p className="text-2xl font-bold">{businessMiles.toFixed(1)}</p>
+                <p className="text-xs text-emerald-200">Business Miles</p>
+              </div>
+              <div className="text-center">
+                <p className="text-2xl font-bold">$0.67</p>
+                <p className="text-xs text-emerald-200">Per Mile Rate</p>
+              </div>
+              <div className="text-center">
+                <p className="text-2xl font-bold">{filteredTrips.filter(t => t.is_business).length}</p>
+                <p className="text-xs text-emerald-200">Business Trips</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
           <div className="bg-white rounded-lg shadow p-4"><p className="text-sm text-gray-600">Total Miles</p><p className="text-2xl font-bold text-gray-900">{totalMiles.toFixed(1)}</p></div>
           <div className="bg-white rounded-lg shadow p-4"><p className="text-sm text-gray-600">Business Miles</p><p className="text-2xl font-bold text-gray-900">{businessMiles.toFixed(1)}</p></div>
           <div className="bg-white rounded-lg shadow p-4"><p className="text-sm text-gray-600">Personal Miles</p><p className="text-2xl font-bold text-gray-900">{personalMiles.toFixed(1)}</p></div>
           <div className="bg-white rounded-lg shadow p-4"><p className="text-sm text-gray-600">Total Amount</p><p className="text-2xl font-bold text-blue-700">${totalAmount.toFixed(2)}</p></div>
+          <div className="bg-gradient-to-br from-emerald-50 to-green-50 rounded-lg shadow p-4 border border-emerald-200">
+            <p className="text-sm text-emerald-700 font-medium">Tax Deduction</p>
+            <p className="text-2xl font-bold text-emerald-600">${taxDeduction.toFixed(2)}</p>
+          </div>
         </div>
 
         {filteredTrips.length === 0 ? (
@@ -197,23 +237,42 @@ export default function MileagePage() {
                   <th className="px-4 py-2 text-left text-gray-600 font-medium">Type</th>
                   <th className="px-4 py-2 text-left text-gray-600 font-medium">Rate</th>
                   <th className="px-4 py-2 text-left text-gray-600 font-medium">Amount</th>
-                  <th className="px-4 py-2 text-left text-gray-600 font-medium">Start</th>
-                  <th className="px-4 py-2 text-left text-gray-600 font-medium">End</th>
+                  <th className="px-4 py-2 text-left text-emerald-700 font-medium">Tax Deduction</th>
+                  <th className="px-4 py-2 text-left text-gray-600 font-medium">Route</th>
                 </tr>
               </thead>
               <tbody>
-                {filteredTrips.map((t, idx) => (
-                  <tr key={t.id} className={`border-t ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/40'}`}>
-                    <td className="px-4 py-2">{new Date(t.date).toLocaleDateString()}</td>
-                    <td className="px-4 py-2">{t.distance.toFixed(2)}</td>
-                    <td className="px-4 py-2">{t.purpose || '—'}</td>
-                    <td className="px-4 py-2">{t.is_business ? 'Business' : 'Personal'}</td>
-                    <td className="px-4 py-2">${t.rate.toFixed(2)}</td>
-                    <td className="px-4 py-2">${t.amount.toFixed(2)}</td>
-                    <td className="px-4 py-2">{t.start_location || '—'}</td>
-                    <td className="px-4 py-2">{t.end_location || '—'}</td>
-                  </tr>
-                ))}
+                {filteredTrips.map((t, idx) => {
+                  const tripDeduction = t.is_business ? t.distance * 0.67 : 0;
+                  return (
+                    <tr key={t.id} className={`border-t ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/40'}`}>
+                      <td className="px-4 py-2">{new Date(t.date).toLocaleDateString()}</td>
+                      <td className="px-4 py-2">{t.distance.toFixed(2)}</td>
+                      <td className="px-4 py-2">{t.purpose || '—'}</td>
+                      <td className="px-4 py-2">
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                          t.is_business
+                            ? 'bg-blue-100 text-blue-700'
+                            : 'bg-gray-100 text-gray-600'
+                        }`}>
+                          {t.is_business ? 'Business' : 'Personal'}
+                        </span>
+                      </td>
+                      <td className="px-4 py-2">${t.rate.toFixed(2)}</td>
+                      <td className="px-4 py-2">${t.amount.toFixed(2)}</td>
+                      <td className="px-4 py-2">
+                        {t.is_business ? (
+                          <span className="font-semibold text-emerald-600">${tripDeduction.toFixed(2)}</span>
+                        ) : (
+                          <span className="text-gray-400">—</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-2 text-xs text-gray-500 max-w-[200px] truncate" title={`${t.start_location || 'Unknown'} → ${t.end_location || 'Unknown'}`}>
+                        {t.start_location ? `${t.start_location.split(',')[0]}` : '?'} → {t.end_location ? `${t.end_location.split(',')[0]}` : '?'}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
