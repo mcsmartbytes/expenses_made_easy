@@ -6,7 +6,14 @@ import Link from 'next/link';
 import { supabase } from '@/utils/supabase';
 import { canAddExpense } from '@/utils/subscription';
 import LineItemsEditor from '@/components/LineItemsEditor';
+import LearningPromptModal from '@/components/LearningPromptModal';
 import { LineItem, convertOCRLineItems, validateLineItemsTotal } from '@/lib/lineItems';
+import {
+  buildLearningSuggestion,
+  shouldShowLearningPrompt,
+  LearningSuggestion,
+  CorrectionContext,
+} from '@/lib/learningDetection';
 
 interface Category {
   id: string;
@@ -55,6 +62,12 @@ export default function NewExpensePage() {
     is_tax_deductible: false,
   });
   const [creatingCategory, setCreatingCategory] = useState(false);
+
+  // Learning system state
+  const [showLearningModal, setShowLearningModal] = useState(false);
+  const [learningSuggestion, setLearningSuggestion] = useState<LearningSuggestion | null>(null);
+  const [pendingRedirect, setPendingRedirect] = useState(false);
+
   const [formData, setFormData] = useState({
     amount: '',
     description: '',
@@ -429,6 +442,32 @@ export default function NewExpensePage() {
         } catch (lineItemError) {
           console.error('Error saving line items:', lineItemError);
         }
+      }
+
+      // Check for learning opportunity - only if no rule was applied
+      // and the user manually set a vendor + category
+      if (
+        formData.vendor &&
+        formData.category_id &&
+        !ruleApplied &&
+        shouldShowLearningPrompt(formData.vendor, 'vendor')
+      ) {
+        const selectedCategory = categories.find(c => c.id === formData.category_id);
+        const correction: CorrectionContext = {
+          type: 'vendor_category',
+          vendor: formData.vendor,
+          oldCategoryId: null,
+          newCategoryId: formData.category_id,
+          oldCategoryName: null,
+          newCategoryName: selectedCategory?.name || null,
+        };
+        const suggestion = buildLearningSuggestion(correction);
+        // Override display message for new expense context
+        suggestion.displayMessage = `You categorized "${formData.vendor}" as "${selectedCategory?.name}".`;
+        setLearningSuggestion(suggestion);
+        setPendingRedirect(true);
+        setShowLearningModal(true);
+        return; // Don't redirect yet - wait for modal
       }
 
       router.push('/expenses/dashboard');
@@ -1041,6 +1080,29 @@ export default function NewExpensePage() {
           </form>
         </div>
       </div>
+
+      {/* Learning Prompt Modal */}
+      {showLearningModal && learningSuggestion && userId && (
+        <LearningPromptModal
+          isOpen={showLearningModal}
+          onClose={() => {
+            setShowLearningModal(false);
+            setLearningSuggestion(null);
+            if (pendingRedirect) {
+              router.push('/expenses/dashboard');
+            }
+          }}
+          onSuccess={() => {
+            if (pendingRedirect) {
+              router.push('/expenses/dashboard');
+            }
+          }}
+          suggestion={learningSuggestion}
+          categories={categories}
+          vendor={formData.vendor}
+          userId={userId}
+        />
+      )}
     </div>
   );
 }

@@ -10,6 +10,9 @@ export interface LineItem {
   unit_of_measure?: string;
   is_taxable?: boolean;
   sort_order?: number;
+  // Category support for item-level learning
+  category_id?: string | null;
+  is_business?: boolean;
 }
 
 export interface OCRLineItem {

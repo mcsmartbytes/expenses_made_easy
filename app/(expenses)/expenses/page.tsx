@@ -3,7 +3,14 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Navigation from '@/components/Navigation';
+import LearningPromptModal from '@/components/LearningPromptModal';
 import { supabase } from '@/utils/supabase';
+import {
+  detectCorrection,
+  buildLearningSuggestion,
+  shouldShowLearningPrompt,
+  LearningSuggestion,
+} from '@/lib/learningDetection';
 
 interface Expense {
   id: string;
@@ -68,6 +75,23 @@ export default function ExpensesPage() {
     deduction_percentage: 0,
   });
   const [creatingCategory, setCreatingCategory] = useState(false);
+
+  // Learning system state
+  const [originalExpenseValues, setOriginalExpenseValues] = useState<{
+    category_id?: string | null;
+    is_business?: boolean;
+    vendor?: string | null;
+  } | null>(null);
+  const [showLearningModal, setShowLearningModal] = useState(false);
+  const [learningSuggestion, setLearningSuggestion] = useState<LearningSuggestion | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
+
+  useEffect(() => {
+    // Get user ID for learning system
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user) setUserId(user.id);
+    });
+  }, []);
 
   useEffect(() => {
     loadExpenses();
@@ -154,11 +178,14 @@ export default function ExpensesPage() {
         .eq('id', editingExpense.id);
       if (error) throw error;
 
+      // Update local state
+      const updatedCategory = categories.find(c => c.id === editFormData.category_id);
       setExpenses(prev => prev.map(e => e.id === editingExpense.id ? {
         ...e,
         amount: parseFloat(editFormData.amount || '0'),
         description: editFormData.description,
         category_id: editFormData.category_id || undefined,
+        category: updatedCategory ? { name: updatedCategory.name, icon: updatedCategory.icon, color: updatedCategory.color } : null,
         date: editFormData.date,
         vendor: editFormData.vendor || null,
         payment_method: editFormData.payment_method || undefined,
@@ -166,7 +193,28 @@ export default function ExpensesPage() {
         notes: editFormData.notes || undefined,
         job_id: editFormData.job_id || null,
       } : e));
+
+      // Check for learning opportunity
+      if (originalExpenseValues && editFormData.vendor) {
+        const correction = detectCorrection(
+          originalExpenseValues,
+          {
+            category_id: editFormData.category_id || null,
+            is_business: editFormData.is_business,
+            vendor: editFormData.vendor,
+          },
+          categories
+        );
+
+        if (correction && shouldShowLearningPrompt(editFormData.vendor, 'vendor')) {
+          const suggestion = buildLearningSuggestion(correction);
+          setLearningSuggestion(suggestion);
+          setShowLearningModal(true);
+        }
+      }
+
       setEditingExpense(null);
+      setOriginalExpenseValues(null);
     } catch (err) {
       alert('Failed to save changes');
     } finally {
@@ -455,6 +503,12 @@ export default function ExpensesPage() {
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-right space-x-3">
                       <button onClick={() => {
                         setEditingExpense(expense);
+                        // Store original values for learning detection
+                        setOriginalExpenseValues({
+                          category_id: expense.category_id,
+                          is_business: expense.is_business,
+                          vendor: expense.vendor,
+                        });
                         setEditFormData({
                           amount: expense.amount.toString(),
                           description: expense.description,
@@ -491,7 +545,7 @@ export default function ExpensesPage() {
             <div className="p-6">
               <div className="flex justify-between items-center mb-6">
                 <h2 className="text-xl font-bold text-gray-900">Edit Expense</h2>
-                <button onClick={() => { setEditingExpense(null); setShowAddCategory(false); }} className="text-gray-400 hover:text-gray-600">
+                <button onClick={() => { setEditingExpense(null); setShowAddCategory(false); setOriginalExpenseValues(null); }} className="text-gray-400 hover:text-gray-600">
                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                   </svg>
@@ -629,12 +683,30 @@ export default function ExpensesPage() {
 
                 <div className="flex gap-3 pt-4">
                   <button type="submit" disabled={saving} className="flex-1 bg-blue-600 text-white py-2 rounded-lg font-semibold hover:bg-blue-700 disabled:opacity-50">{saving ? 'Saving...' : 'Save Changes'}</button>
-                  <button type="button" onClick={() => { setEditingExpense(null); setShowAddCategory(false); }} className="flex-1 bg-gray-200 text-gray-700 py-2 rounded-lg font-semibold hover:bg-gray-300">Cancel</button>
+                  <button type="button" onClick={() => { setEditingExpense(null); setShowAddCategory(false); setOriginalExpenseValues(null); }} className="flex-1 bg-gray-200 text-gray-700 py-2 rounded-lg font-semibold hover:bg-gray-300">Cancel</button>
                 </div>
               </form>
             </div>
           </div>
         </div>
+      )}
+
+      {/* Learning Prompt Modal */}
+      {showLearningModal && learningSuggestion && userId && (
+        <LearningPromptModal
+          isOpen={showLearningModal}
+          onClose={() => {
+            setShowLearningModal(false);
+            setLearningSuggestion(null);
+          }}
+          onSuccess={() => {
+            // Optionally show a success toast
+          }}
+          suggestion={learningSuggestion}
+          categories={categories}
+          vendor={editFormData.vendor}
+          userId={userId}
+        />
       )}
     </div>
   );
