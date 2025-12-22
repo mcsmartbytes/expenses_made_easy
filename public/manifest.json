@@ -2,7 +2,7 @@
   "name": "Expenses Made Easy",
   "short_name": "Expenses",
   "description": "Track business expenses with AI receipt scanning and tax reports",
-  "start_url": "/expense-dashboard",
+  "start_url": "/expenses/dashboard",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#3B82F6",

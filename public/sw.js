@@ -1,12 +1,13 @@
-const CACHE_NAME = 'expenses-made-easy-v2';
-const STATIC_CACHE = 'static-v2';
-const DYNAMIC_CACHE = 'dynamic-v2';
+const CACHE_NAME = 'expenses-made-easy-v3';
+const STATIC_CACHE = 'static-v3';
+const DYNAMIC_CACHE = 'dynamic-v3';
 
 // Static assets to cache on install
 const STATIC_ASSETS = [
   '/',
-  '/expense-dashboard',
+  '/expenses/dashboard',
   '/expenses/new',
+  '/expenses',
   '/profile',
   '/reports',
   '/manifest.json',
