@@ -6,6 +6,12 @@ import {
   findBiggestDecreases,
   findFrequentItems,
   PriceTrend,
+  compareVendorsForItem,
+  calculateSavingsOpportunity,
+  calculateVendorRankings,
+  calculateSavingsSummary,
+  ItemVendorComparison,
+  SavingsOpportunity,
 } from '@/lib/priceTracking';
 
 // GET - Fetch price history and trends
@@ -137,6 +143,70 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({
         success: true,
         data: alerts.sort((a, b) => Math.abs(b.change_pct) - Math.abs(a.change_pct)),
+      });
+    }
+
+    // Vendor comparison mode
+    if (mode === 'vendor-comparison') {
+      // Get all history for comprehensive vendor comparison
+      const { data: allHistory, error: historyError } = await supabaseAdmin
+        .from('item_price_history')
+        .select('*')
+        .eq('user_id', userId)
+        .order('purchase_date', { ascending: false });
+
+      if (historyError) throw historyError;
+
+      // Group by item name
+      const grouped = new Map<string, any[]>();
+      for (const item of allHistory || []) {
+        const key = item.item_name_normalized;
+        if (!grouped.has(key)) {
+          grouped.set(key, []);
+        }
+        grouped.get(key)!.push(item);
+      }
+
+      // Build comparisons and savings opportunities for each item
+      const comparisons: ItemVendorComparison[] = [];
+      const opportunities: SavingsOpportunity[] = [];
+
+      for (const [itemNameNorm, items] of grouped) {
+        // Only compare items purchased from multiple vendors
+        const uniqueVendors = new Set(items.map(i => i.vendor_normalized));
+
+        if (uniqueVendors.size >= 2) {
+          // Get a display name from most recent purchase
+          const sorted = [...items].sort(
+            (a, b) => new Date(b.purchase_date).getTime() - new Date(a.purchase_date).getTime()
+          );
+          const displayName = sorted[0].item_name_normalized || itemNameNorm;
+
+          const comparison = compareVendorsForItem(items, displayName);
+          if (comparison) {
+            comparisons.push(comparison);
+          }
+
+          const opportunity = calculateSavingsOpportunity(items, displayName);
+          if (opportunity) {
+            opportunities.push(opportunity);
+          }
+        }
+      }
+
+      // Calculate vendor rankings
+      const vendorRankings = calculateVendorRankings(comparisons);
+
+      // Calculate savings summary
+      const savingsSummary = calculateSavingsSummary(opportunities);
+
+      return NextResponse.json({
+        success: true,
+        data: {
+          items: comparisons.sort((a, b) => b.price_spread_pct - a.price_spread_pct),
+          savings_summary: savingsSummary,
+          vendor_rankings: vendorRankings,
+        },
       });
     }
 

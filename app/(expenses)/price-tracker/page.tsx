@@ -39,8 +39,64 @@ interface PriceHistoryEntry {
   purchase_date: string;
 }
 
+interface VendorPriceData {
+  vendor: string;
+  vendor_normalized: string;
+  avg_price: number;
+  min_price: number;
+  max_price: number;
+  purchase_count: number;
+  last_purchase: string;
+  total_spent: number;
+}
+
+interface ItemVendorComparison {
+  item_name: string;
+  item_name_normalized: string;
+  vendors: VendorPriceData[];
+  best_vendor: VendorPriceData | null;
+  worst_vendor: VendorPriceData | null;
+  price_spread: number;
+  price_spread_pct: number;
+  total_purchases: number;
+}
+
+interface SavingsOpportunity {
+  item_name: string;
+  item_name_normalized: string;
+  total_spent: number;
+  optimal_spend: number;
+  overpaid_amount: number;
+  overpaid_pct: number;
+  best_vendor: string;
+  best_price: number;
+  worst_vendor: string;
+  worst_price: number;
+  recommendation: string;
+}
+
+interface VendorRanking {
+  vendor: string;
+  vendor_normalized: string;
+  items_with_best_price: number;
+  items_with_worst_price: number;
+  total_items_tracked: number;
+  avg_price_rank: number;
+  potential_savings_if_switched: number;
+  total_purchases: number;
+}
+
+interface SavingsSummary {
+  total_overpaid_ytd: number;
+  potential_annual_savings: number;
+  top_opportunities: SavingsOpportunity[];
+}
+
+type TabType = 'overview' | 'vendors' | 'savings';
+
 export default function PriceTrackerPage() {
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<TabType>('overview');
   const [trends, setTrends] = useState<PriceTrend[]>([]);
   const [alerts, setAlerts] = useState<PriceAlert[]>([]);
   const [biggestIncreases, setBiggestIncreases] = useState<PriceTrend[]>([]);
@@ -49,6 +105,12 @@ export default function PriceTrackerPage() {
   const [selectedItem, setSelectedItem] = useState<string | null>(null);
   const [itemHistory, setItemHistory] = useState<PriceHistoryEntry[]>([]);
   const [error, setError] = useState<string | null>(null);
+
+  // Vendor comparison state
+  const [vendorComparisons, setVendorComparisons] = useState<ItemVendorComparison[]>([]);
+  const [vendorRankings, setVendorRankings] = useState<VendorRanking[]>([]);
+  const [savingsSummary, setSavingsSummary] = useState<SavingsSummary | null>(null);
+  const [vendorDataLoaded, setVendorDataLoaded] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -89,6 +151,34 @@ export default function PriceTrackerPage() {
       setLoading(false);
     }
   }
+
+  async function loadVendorData() {
+    if (vendorDataLoaded) return;
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const res = await fetch(`/api/price-history?user_id=${user.id}&mode=vendor-comparison`);
+      const data = await res.json();
+
+      if (data.success) {
+        setVendorComparisons(data.data.items || []);
+        setVendorRankings(data.data.vendor_rankings || []);
+        setSavingsSummary(data.data.savings_summary || null);
+        setVendorDataLoaded(true);
+      }
+    } catch (err) {
+      console.error('Error loading vendor data:', err);
+    }
+  }
+
+  // Load vendor data when switching to those tabs
+  useEffect(() => {
+    if ((activeTab === 'vendors' || activeTab === 'savings') && !vendorDataLoaded) {
+      loadVendorData();
+    }
+  }, [activeTab, vendorDataLoaded]);
 
   async function loadItemHistory(itemName: string) {
     try {
@@ -175,198 +265,438 @@ export default function PriceTrackerPage() {
               />
             </div>
           </div>
+
+          {/* Tab Navigation */}
+          <div className="flex gap-1 mt-6 border-b border-slate-700">
+            <button
+              onClick={() => setActiveTab('overview')}
+              className={`px-4 py-2 text-sm font-medium rounded-t-lg transition ${
+                activeTab === 'overview'
+                  ? 'bg-slate-700 text-white border-b-2 border-blue-500'
+                  : 'text-slate-400 hover:text-white hover:bg-slate-700/50'
+              }`}
+            >
+              Overview
+            </button>
+            <button
+              onClick={() => setActiveTab('vendors')}
+              className={`px-4 py-2 text-sm font-medium rounded-t-lg transition ${
+                activeTab === 'vendors'
+                  ? 'bg-slate-700 text-white border-b-2 border-blue-500'
+                  : 'text-slate-400 hover:text-white hover:bg-slate-700/50'
+              }`}
+            >
+              Vendor Comparison
+            </button>
+            <button
+              onClick={() => setActiveTab('savings')}
+              className={`px-4 py-2 text-sm font-medium rounded-t-lg transition ${
+                activeTab === 'savings'
+                  ? 'bg-slate-700 text-white border-b-2 border-blue-500'
+                  : 'text-slate-400 hover:text-white hover:bg-slate-700/50'
+              }`}
+            >
+              Savings
+            </button>
+          </div>
         </div>
       </header>
 
       <main className="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8 space-y-6">
-        {/* Summary Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="rounded-xl border border-slate-700 bg-slate-800 p-4">
-            <p className="text-xs font-semibold text-slate-300 uppercase">Items Tracked</p>
-            <p className="mt-2 text-3xl font-bold text-blue-400">{trends.length}</p>
-          </div>
-          <div className="rounded-xl border border-slate-700 bg-slate-800 p-4">
-            <p className="text-xs font-semibold text-slate-300 uppercase">Price Increases</p>
-            <p className="mt-2 text-3xl font-bold text-red-400">
-              {alerts.filter(a => a.change_pct > 0).length}
-            </p>
-            <p className="text-xs text-slate-400 mt-1">Last 30 days</p>
-          </div>
-          <div className="rounded-xl border border-slate-700 bg-slate-800 p-4">
-            <p className="text-xs font-semibold text-slate-300 uppercase">Price Decreases</p>
-            <p className="mt-2 text-3xl font-bold text-green-400">
-              {alerts.filter(a => a.change_pct < 0).length}
-            </p>
-            <p className="text-xs text-slate-400 mt-1">Savings found</p>
-          </div>
-          <div className="rounded-xl border border-slate-700 bg-slate-800 p-4">
-            <p className="text-xs font-semibold text-slate-300 uppercase">Frequent Purchases</p>
-            <p className="mt-2 text-3xl font-bold text-purple-400">{frequentItems.length}</p>
-            <p className="text-xs text-slate-400 mt-1">3+ times</p>
-          </div>
-        </div>
-
-        {/* Price Alerts */}
-        {alerts.length > 0 && (
-          <div className="rounded-xl border border-amber-500/50 bg-amber-900/20 p-4">
-            <h3 className="text-lg font-semibold text-amber-300 mb-3">Recent Price Changes</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-              {alerts.slice(0, 6).map((alert, idx) => (
-                <div
-                  key={idx}
-                  className={`rounded-lg p-3 ${
-                    alert.change_pct > 0 ? 'bg-red-900/30 border border-red-500/30' : 'bg-green-900/30 border border-green-500/30'
-                  }`}
-                >
-                  <p className="font-medium text-white text-sm truncate">{alert.item_name}</p>
-                  <p className="text-xs text-slate-400">{alert.vendor}</p>
-                  <div className="flex justify-between items-center mt-2">
-                    <span className="text-sm text-slate-300">
-                      {formatPrice(alert.previous_price)} → {formatPrice(alert.current_price)}
-                    </span>
-                    <span className={alert.change_pct > 0 ? 'text-red-400' : 'text-green-400'}>
-                      {alert.change_pct > 0 ? '↑' : '↓'} {Math.abs(alert.change_pct).toFixed(1)}%
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Biggest Increases */}
-          <div className="rounded-xl border border-slate-700 bg-slate-800 overflow-hidden">
-            <div className="px-4 py-3 border-b border-slate-700 bg-slate-800/80">
-              <h2 className="font-semibold text-white flex items-center gap-2">
-                <span className="text-red-400">↑</span> Biggest Price Increases
-              </h2>
-            </div>
-            {biggestIncreases.length === 0 ? (
-              <div className="p-4 text-sm text-slate-400">No price increases detected</div>
-            ) : (
-              <div className="divide-y divide-slate-700">
-                {biggestIncreases.map((item, idx) => (
-                  <button
-                    key={idx}
-                    onClick={() => loadItemHistory(item.item_name_normalized)}
-                    className="w-full p-3 hover:bg-slate-700/50 transition text-left"
-                  >
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-white truncate">{item.item_name}</span>
-                      <span className="text-red-400 text-sm">
-                        +{item.price_change_30d.toFixed(1)}%
-                      </span>
-                    </div>
-                    <p className="text-xs text-slate-400 mt-1">
-                      {formatPrice(item.current_price)} • {item.purchase_count} purchases
-                    </p>
-                  </button>
-                ))}
+        {/* Overview Tab */}
+        {activeTab === 'overview' && (
+          <>
+            {/* Summary Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="rounded-xl border border-slate-700 bg-slate-800 p-4">
+                <p className="text-xs font-semibold text-slate-300 uppercase">Items Tracked</p>
+                <p className="mt-2 text-3xl font-bold text-blue-400">{trends.length}</p>
               </div>
-            )}
-          </div>
-
-          {/* Frequently Purchased */}
-          <div className="rounded-xl border border-slate-700 bg-slate-800 overflow-hidden">
-            <div className="px-4 py-3 border-b border-slate-700 bg-slate-800/80">
-              <h2 className="font-semibold text-white flex items-center gap-2">
-                <span className="text-purple-400">★</span> Frequently Purchased
-              </h2>
-            </div>
-            {frequentItems.length === 0 ? (
-              <div className="p-4 text-sm text-slate-400">Not enough purchase history yet</div>
-            ) : (
-              <div className="divide-y divide-slate-700">
-                {frequentItems.slice(0, 5).map((item, idx) => (
-                  <button
-                    key={idx}
-                    onClick={() => loadItemHistory(item.item_name_normalized)}
-                    className="w-full p-3 hover:bg-slate-700/50 transition text-left"
-                  >
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-white truncate">{item.item_name}</span>
-                      <span className="text-purple-400 text-sm">{item.purchase_count}x</span>
-                    </div>
-                    <p className="text-xs text-slate-400 mt-1">
-                      Avg: {formatPrice(item.avg_price)} • Range: {formatPrice(item.min_price)}-{formatPrice(item.max_price)}
-                    </p>
-                  </button>
-                ))}
+              <div className="rounded-xl border border-slate-700 bg-slate-800 p-4">
+                <p className="text-xs font-semibold text-slate-300 uppercase">Price Increases</p>
+                <p className="mt-2 text-3xl font-bold text-red-400">
+                  {alerts.filter(a => a.change_pct > 0).length}
+                </p>
+                <p className="text-xs text-slate-400 mt-1">Last 30 days</p>
               </div>
-            )}
-          </div>
-
-          {/* Item Detail / Search Results */}
-          <div className="rounded-xl border border-slate-700 bg-slate-800 overflow-hidden">
-            <div className="px-4 py-3 border-b border-slate-700 bg-slate-800/80">
-              <h2 className="font-semibold text-white">
-                {selectedItem ? 'Price History' : 'All Items'}
-              </h2>
+              <div className="rounded-xl border border-slate-700 bg-slate-800 p-4">
+                <p className="text-xs font-semibold text-slate-300 uppercase">Price Decreases</p>
+                <p className="mt-2 text-3xl font-bold text-green-400">
+                  {alerts.filter(a => a.change_pct < 0).length}
+                </p>
+                <p className="text-xs text-slate-400 mt-1">Savings found</p>
+              </div>
+              <div className="rounded-xl border border-slate-700 bg-slate-800 p-4">
+                <p className="text-xs font-semibold text-slate-300 uppercase">Frequent Purchases</p>
+                <p className="mt-2 text-3xl font-bold text-purple-400">{frequentItems.length}</p>
+                <p className="text-xs text-slate-400 mt-1">3+ times</p>
+              </div>
             </div>
-            {selectedItem ? (
-              <div className="p-4">
-                <div className="flex justify-between items-center mb-4">
-                  <h3 className="font-medium text-white">{selectedItem}</h3>
-                  <button
-                    onClick={() => setSelectedItem(null)}
-                    className="text-xs text-slate-400 hover:text-white"
-                  >
-                    ← Back
-                  </button>
-                </div>
-                {itemHistory.length === 0 ? (
-                  <p className="text-sm text-slate-400">No history found</p>
-                ) : (
-                  <div className="space-y-2 max-h-64 overflow-y-auto">
-                    {itemHistory.map((entry, idx) => (
-                      <div key={idx} className="flex justify-between items-center text-sm">
-                        <div>
-                          <p className="text-white">{formatPrice(entry.unit_price)}</p>
-                          <p className="text-xs text-slate-400">{entry.vendor}</p>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-slate-300">{entry.quantity} {entry.unit_of_measure}</p>
-                          <p className="text-xs text-slate-400">
-                            {new Date(entry.purchase_date).toLocaleDateString()}
-                          </p>
-                        </div>
+
+            {/* Price Alerts */}
+            {alerts.length > 0 && (
+              <div className="rounded-xl border border-amber-500/50 bg-amber-900/20 p-4">
+                <h3 className="text-lg font-semibold text-amber-300 mb-3">Recent Price Changes</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {alerts.slice(0, 6).map((alert, idx) => (
+                    <div
+                      key={idx}
+                      className={`rounded-lg p-3 ${
+                        alert.change_pct > 0 ? 'bg-red-900/30 border border-red-500/30' : 'bg-green-900/30 border border-green-500/30'
+                      }`}
+                    >
+                      <p className="font-medium text-white text-sm truncate">{alert.item_name}</p>
+                      <p className="text-xs text-slate-400">{alert.vendor}</p>
+                      <div className="flex justify-between items-center mt-2">
+                        <span className="text-sm text-slate-300">
+                          {formatPrice(alert.previous_price)} → {formatPrice(alert.current_price)}
+                        </span>
+                        <span className={alert.change_pct > 0 ? 'text-red-400' : 'text-green-400'}>
+                          {alert.change_pct > 0 ? '↑' : '↓'} {Math.abs(alert.change_pct).toFixed(1)}%
+                        </span>
                       </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Biggest Increases */}
+              <div className="rounded-xl border border-slate-700 bg-slate-800 overflow-hidden">
+                <div className="px-4 py-3 border-b border-slate-700 bg-slate-800/80">
+                  <h2 className="font-semibold text-white flex items-center gap-2">
+                    <span className="text-red-400">↑</span> Biggest Price Increases
+                  </h2>
+                </div>
+                {biggestIncreases.length === 0 ? (
+                  <div className="p-4 text-sm text-slate-400">No price increases detected</div>
+                ) : (
+                  <div className="divide-y divide-slate-700">
+                    {biggestIncreases.map((item, idx) => (
+                      <button
+                        key={idx}
+                        onClick={() => loadItemHistory(item.item_name_normalized)}
+                        className="w-full p-3 hover:bg-slate-700/50 transition text-left"
+                      >
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm text-white truncate">{item.item_name}</span>
+                          <span className="text-red-400 text-sm">
+                            +{item.price_change_30d.toFixed(1)}%
+                          </span>
+                        </div>
+                        <p className="text-xs text-slate-400 mt-1">
+                          {formatPrice(item.current_price)} • {item.purchase_count} purchases
+                        </p>
+                      </button>
                     ))}
                   </div>
                 )}
               </div>
-            ) : filteredTrends.length === 0 ? (
-              <div className="p-4 text-sm text-slate-400">
-                {searchQuery ? 'No items match your search' : 'No items tracked yet. Scan receipts to start tracking!'}
+
+              {/* Frequently Purchased */}
+              <div className="rounded-xl border border-slate-700 bg-slate-800 overflow-hidden">
+                <div className="px-4 py-3 border-b border-slate-700 bg-slate-800/80">
+                  <h2 className="font-semibold text-white flex items-center gap-2">
+                    <span className="text-purple-400">★</span> Frequently Purchased
+                  </h2>
+                </div>
+                {frequentItems.length === 0 ? (
+                  <div className="p-4 text-sm text-slate-400">Not enough purchase history yet</div>
+                ) : (
+                  <div className="divide-y divide-slate-700">
+                    {frequentItems.slice(0, 5).map((item, idx) => (
+                      <button
+                        key={idx}
+                        onClick={() => loadItemHistory(item.item_name_normalized)}
+                        className="w-full p-3 hover:bg-slate-700/50 transition text-left"
+                      >
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm text-white truncate">{item.item_name}</span>
+                          <span className="text-purple-400 text-sm">{item.purchase_count}x</span>
+                        </div>
+                        <p className="text-xs text-slate-400 mt-1">
+                          Avg: {formatPrice(item.avg_price)} • Range: {formatPrice(item.min_price)}-{formatPrice(item.max_price)}
+                        </p>
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
-            ) : (
-              <div className="divide-y divide-slate-700 max-h-80 overflow-y-auto">
-                {filteredTrends.slice(0, 10).map((item, idx) => {
-                  const change = formatChange(item.price_change_30d);
-                  return (
-                    <button
-                      key={idx}
-                      onClick={() => loadItemHistory(item.item_name_normalized)}
-                      className="w-full p-3 hover:bg-slate-700/50 transition text-left"
-                    >
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm text-white truncate">{item.item_name}</span>
-                        <span className={`text-sm ${change.color}`}>{change.text}</span>
+
+              {/* Item Detail / Search Results */}
+              <div className="rounded-xl border border-slate-700 bg-slate-800 overflow-hidden">
+                <div className="px-4 py-3 border-b border-slate-700 bg-slate-800/80">
+                  <h2 className="font-semibold text-white">
+                    {selectedItem ? 'Price History' : 'All Items'}
+                  </h2>
+                </div>
+                {selectedItem ? (
+                  <div className="p-4">
+                    <div className="flex justify-between items-center mb-4">
+                      <h3 className="font-medium text-white">{selectedItem}</h3>
+                      <button
+                        onClick={() => setSelectedItem(null)}
+                        className="text-xs text-slate-400 hover:text-white"
+                      >
+                        ← Back
+                      </button>
+                    </div>
+                    {itemHistory.length === 0 ? (
+                      <p className="text-sm text-slate-400">No history found</p>
+                    ) : (
+                      <div className="space-y-2 max-h-64 overflow-y-auto">
+                        {itemHistory.map((entry, idx) => (
+                          <div key={idx} className="flex justify-between items-center text-sm">
+                            <div>
+                              <p className="text-white">{formatPrice(entry.unit_price)}</p>
+                              <p className="text-xs text-slate-400">{entry.vendor}</p>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-slate-300">{entry.quantity} {entry.unit_of_measure}</p>
+                              <p className="text-xs text-slate-400">
+                                {new Date(entry.purchase_date).toLocaleDateString()}
+                              </p>
+                            </div>
+                          </div>
+                        ))}
                       </div>
-                      <p className="text-xs text-slate-400 mt-1">
-                        {formatPrice(item.current_price)} • Last: {new Date(item.last_purchase).toLocaleDateString()}
-                      </p>
-                    </button>
-                  );
-                })}
+                    )}
+                  </div>
+                ) : filteredTrends.length === 0 ? (
+                  <div className="p-4 text-sm text-slate-400">
+                    {searchQuery ? 'No items match your search' : 'No items tracked yet. Scan receipts to start tracking!'}
+                  </div>
+                ) : (
+                  <div className="divide-y divide-slate-700 max-h-80 overflow-y-auto">
+                    {filteredTrends.slice(0, 10).map((item, idx) => {
+                      const change = formatChange(item.price_change_30d);
+                      return (
+                        <button
+                          key={idx}
+                          onClick={() => loadItemHistory(item.item_name_normalized)}
+                          className="w-full p-3 hover:bg-slate-700/50 transition text-left"
+                        >
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm text-white truncate">{item.item_name}</span>
+                            <span className={`text-sm ${change.color}`}>{change.text}</span>
+                          </div>
+                          <p className="text-xs text-slate-400 mt-1">
+                            {formatPrice(item.current_price)} • Last: {new Date(item.last_purchase).toLocaleDateString()}
+                          </p>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* Vendor Comparison Tab */}
+        {activeTab === 'vendors' && (
+          <>
+            {/* Vendor Rankings */}
+            {vendorRankings.length > 0 && (
+              <div className="rounded-xl border border-slate-700 bg-slate-800 p-4">
+                <h3 className="text-lg font-semibold text-white mb-4">Vendor Rankings</h3>
+                <p className="text-sm text-slate-400 mb-4">Based on average prices across all items you've purchased</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {vendorRankings.slice(0, 6).map((vendor, idx) => (
+                    <div
+                      key={idx}
+                      className={`rounded-lg p-4 border ${
+                        idx === 0
+                          ? 'border-green-500/50 bg-green-900/20'
+                          : 'border-slate-600 bg-slate-700/50'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="font-medium text-white">{vendor.vendor}</span>
+                        {idx === 0 && (
+                          <span className="text-xs px-2 py-0.5 bg-green-600 text-white rounded-full">
+                            Best Value
+                          </span>
+                        )}
+                      </div>
+                      <div className="space-y-1 text-sm">
+                        <div className="flex justify-between">
+                          <span className="text-slate-400">Best prices on:</span>
+                          <span className="text-green-400">{vendor.items_with_best_price} items</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-slate-400">Highest prices on:</span>
+                          <span className="text-red-400">{vendor.items_with_worst_price} items</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-slate-400">Total purchases:</span>
+                          <span className="text-slate-300">{vendor.total_purchases}</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
-          </div>
-        </div>
+
+            {/* Item-by-Item Comparison */}
+            <div className="rounded-xl border border-slate-700 bg-slate-800 overflow-hidden">
+              <div className="px-4 py-3 border-b border-slate-700 bg-slate-800/80">
+                <h2 className="font-semibold text-white">Price Comparison by Item</h2>
+                <p className="text-xs text-slate-400 mt-1">Items purchased from multiple vendors</p>
+              </div>
+              {vendorComparisons.length === 0 ? (
+                <div className="p-8 text-center text-slate-400">
+                  <p>No items purchased from multiple vendors yet.</p>
+                  <p className="text-sm mt-2">Buy the same item from different stores to compare prices!</p>
+                </div>
+              ) : (
+                <div className="divide-y divide-slate-700">
+                  {vendorComparisons.map((item, idx) => (
+                    <div key={idx} className="p-4">
+                      <div className="flex justify-between items-start mb-3">
+                        <div>
+                          <h4 className="font-medium text-white">{item.item_name}</h4>
+                          <p className="text-xs text-slate-400">{item.total_purchases} total purchases</p>
+                        </div>
+                        {item.price_spread_pct > 0 && (
+                          <div className="text-right">
+                            <span className="text-xs px-2 py-1 bg-amber-600/20 text-amber-400 rounded">
+                              {item.price_spread_pct.toFixed(0)}% price spread
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {item.vendors.map((vendor, vIdx) => (
+                          <div
+                            key={vIdx}
+                            className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm ${
+                              vIdx === 0
+                                ? 'bg-green-900/30 border border-green-500/30'
+                                : vIdx === item.vendors.length - 1 && item.vendors.length > 1
+                                  ? 'bg-red-900/20 border border-red-500/20'
+                                  : 'bg-slate-700/50 border border-slate-600'
+                            }`}
+                          >
+                            <span className="text-slate-300">{vendor.vendor}</span>
+                            <span className={vIdx === 0 ? 'text-green-400 font-medium' : 'text-white'}>
+                              {formatPrice(vendor.avg_price)}
+                            </span>
+                            {vIdx === 0 && item.vendors.length > 1 && (
+                              <span className="text-xs text-green-400">Best</span>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </>
+        )}
+
+        {/* Savings Tab */}
+        {activeTab === 'savings' && (
+          <>
+            {/* Savings Summary Card */}
+            {savingsSummary && savingsSummary.total_overpaid_ytd > 0 && (
+              <div className="rounded-xl border border-green-500/50 bg-gradient-to-r from-green-900/30 to-emerald-900/30 p-6">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-12 h-12 rounded-full bg-green-600/20 flex items-center justify-center">
+                    <span className="text-2xl">💰</span>
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold text-white">Potential Savings</h3>
+                    <p className="text-sm text-green-300">If you always bought at the best price</p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="rounded-lg bg-slate-800/50 p-4">
+                    <p className="text-xs text-slate-400 uppercase mb-1">You Could Have Saved</p>
+                    <p className="text-3xl font-bold text-green-400">
+                      {formatPrice(savingsSummary.total_overpaid_ytd)}
+                    </p>
+                  </div>
+                  <div className="rounded-lg bg-slate-800/50 p-4">
+                    <p className="text-xs text-slate-400 uppercase mb-1">Items with Savings</p>
+                    <p className="text-3xl font-bold text-white">
+                      {savingsSummary.top_opportunities.length}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Savings Opportunities */}
+            <div className="rounded-xl border border-slate-700 bg-slate-800 overflow-hidden">
+              <div className="px-4 py-3 border-b border-slate-700 bg-slate-800/80">
+                <h2 className="font-semibold text-white">Savings Opportunities</h2>
+                <p className="text-xs text-slate-400 mt-1">Switch vendors to save money on these items</p>
+              </div>
+              {!savingsSummary || savingsSummary.top_opportunities.length === 0 ? (
+                <div className="p-8 text-center text-slate-400">
+                  <p>No savings opportunities found yet.</p>
+                  <p className="text-sm mt-2">Buy items from different vendors to find the best deals!</p>
+                </div>
+              ) : (
+                <div className="divide-y divide-slate-700">
+                  {savingsSummary.top_opportunities.map((opp, idx) => (
+                    <div key={idx} className="p-4">
+                      <div className="flex justify-between items-start mb-2">
+                        <div>
+                          <h4 className="font-medium text-white">{opp.item_name}</h4>
+                          <p className="text-sm text-green-400">{opp.recommendation}</p>
+                        </div>
+                        <div className="text-right">
+                          <span className="text-lg font-bold text-green-400">
+                            Save {formatPrice(opp.overpaid_amount)}
+                          </span>
+                          <p className="text-xs text-slate-400">{opp.overpaid_pct.toFixed(0)}% less</p>
+                        </div>
+                      </div>
+                      <div className="flex gap-4 text-sm mt-3">
+                        <div className="flex items-center gap-2">
+                          <span className="w-2 h-2 rounded-full bg-green-500"></span>
+                          <span className="text-slate-400">Best:</span>
+                          <span className="text-white">{opp.best_vendor}</span>
+                          <span className="text-green-400">{formatPrice(opp.best_price)}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="w-2 h-2 rounded-full bg-red-500"></span>
+                          <span className="text-slate-400">Worst:</span>
+                          <span className="text-white">{opp.worst_vendor}</span>
+                          <span className="text-red-400">{formatPrice(opp.worst_price)}</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* No Savings Banner */}
+            {(!savingsSummary || savingsSummary.total_overpaid_ytd === 0) && vendorDataLoaded && (
+              <div className="rounded-xl border border-blue-500/30 bg-blue-900/20 p-6 text-center">
+                <div className="w-16 h-16 mx-auto rounded-full bg-blue-600/20 flex items-center justify-center mb-4">
+                  <span className="text-3xl">🎉</span>
+                </div>
+                <h3 className="text-xl font-semibold text-white mb-2">Great Job!</h3>
+                <p className="text-slate-300">
+                  You're already getting the best prices on your purchases.
+                </p>
+                <p className="text-sm text-slate-400 mt-2">
+                  Keep shopping at your current vendors for the best value.
+                </p>
+              </div>
+            )}
+          </>
+        )}
 
         {/* Empty State */}
-        {trends.length === 0 && !loading && (
+        {trends.length === 0 && !loading && activeTab === 'overview' && (
           <div className="rounded-xl border border-slate-700 bg-slate-800 p-12 text-center">
             <svg className="w-16 h-16 mx-auto text-slate-600 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
