@@ -1,8 +1,26 @@
+'use client';
+
 import Link from 'next/link';
+import { useState } from 'react';
 
 export default function Navigation({ variant = 'expenses' }: { variant?: string }) {
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  const navLinks = [
+    { href: '/expenses/dashboard', label: 'Dashboard' },
+    { href: '/expenses', label: 'Expenses' },
+    { href: '/projects', label: 'Projects' },
+    { href: '/budgets', label: 'Budgets' },
+    { href: '/subscriptions', label: 'Subscriptions' },
+    { href: '/price-tracker', label: 'Prices' },
+    { href: '/receipts', label: 'Receipts' },
+    { href: '/mileage', label: 'Mileage' },
+    { href: '/reports', label: 'Reports' },
+    { href: '/settings', label: 'Settings' },
+  ];
+
   return (
-    <nav className="bg-gradient-to-r from-slate-900 to-slate-800 text-slate-100 shadow">
+    <nav className="bg-gradient-to-r from-slate-900 to-slate-800 text-slate-100 shadow relative">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between">
         {/* Brand */}
         <div className="flex items-center gap-3">
@@ -19,50 +37,65 @@ export default function Navigation({ variant = 'expenses' }: { variant?: string 
           </div>
         </div>
 
-        {/* Main nav */}
+        {/* Desktop nav */}
         <div className="hidden md:flex items-center gap-6 text-sm font-medium">
-          <Link href="/expenses/dashboard" className="text-slate-200 hover:text-blue-400 transition-colors">
-            Dashboard
-          </Link>
-          <Link href="/expenses" className="text-slate-200 hover:text-blue-400 transition-colors">
-            Expenses
-          </Link>
-          <Link href="/projects" className="text-slate-200 hover:text-blue-400 transition-colors">
-            Projects
-          </Link>
-          <Link href="/budgets" className="text-slate-200 hover:text-blue-400 transition-colors">
-            Budgets
-          </Link>
-          <Link href="/subscriptions" className="text-slate-200 hover:text-purple-400 transition-colors">
-            Subscriptions
-          </Link>
-          <Link href="/price-tracker" className="text-slate-200 hover:text-green-400 transition-colors">
-            Prices
-          </Link>
-          <Link href="/receipts" className="text-slate-200 hover:text-blue-400 transition-colors">
-            Receipts
-          </Link>
-          <Link href="/mileage" className="text-slate-200 hover:text-blue-400 transition-colors">
-            Mileage
-          </Link>
-          <Link href="/reports" className="text-slate-200 hover:text-blue-400 transition-colors">
-            Reports
-          </Link>
-          <Link href="/settings" className="text-slate-200 hover:text-blue-400 transition-colors">
-            Settings
-          </Link>
+          {navLinks.map((link) => (
+            <Link
+              key={link.href}
+              href={link.href}
+              className="text-slate-200 hover:text-blue-400 transition-colors"
+            >
+              {link.label}
+            </Link>
+          ))}
         </div>
 
-        {/* Right side: placeholder for user stuff */}
+        {/* Right side */}
         <div className="flex items-center gap-3">
           <span className="hidden sm:inline text-[11px] text-slate-300">
             Track smarter. Save more.
           </span>
-          <div className="h-8 w-8 rounded-full bg-slate-700/60 border border-slate-600 flex items-center justify-center text-[10px] font-semibold text-slate-200">
+
+          {/* Mobile menu button */}
+          <button
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            className="md:hidden p-2 rounded-md hover:bg-slate-700 transition-colors"
+            aria-label="Toggle menu"
+          >
+            {mobileMenuOpen ? (
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            ) : (
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+            )}
+          </button>
+
+          <div className="hidden sm:flex h-8 w-8 rounded-full bg-slate-700/60 border border-slate-600 items-center justify-center text-[10px] font-semibold text-slate-200">
             ME
           </div>
         </div>
       </div>
+
+      {/* Mobile menu dropdown */}
+      {mobileMenuOpen && (
+        <div className="md:hidden absolute top-14 left-0 right-0 bg-slate-900 border-t border-slate-700 shadow-lg z-50">
+          <div className="grid grid-cols-2 gap-1 p-3">
+            {navLinks.map((link) => (
+              <Link
+                key={link.href}
+                href={link.href}
+                onClick={() => setMobileMenuOpen(false)}
+                className="px-4 py-3 text-sm text-slate-200 hover:bg-slate-800 rounded-md transition-colors"
+              >
+                {link.label}
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
     </nav>
   );
 }
