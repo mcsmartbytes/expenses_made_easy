@@ -42,6 +42,14 @@ yarn-error.*
 # typescript
 *.tsbuildinfo
 
+# Testing
+coverage/
+playwright-report/
+test-results/
+
+# Sentry
+.sentryclirc
+
 # generated native folders
 /ios
 /android
