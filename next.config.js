@@ -14,7 +14,14 @@ const nextConfig = {
         hostname: '**.supabase.co',
       },
     ],
+    // Required for static export
+    unoptimized: process.env.CAPACITOR_BUILD === 'true',
   },
+  // Enable static export for Capacitor builds
+  ...(process.env.CAPACITOR_BUILD === 'true' && {
+    output: 'export',
+    trailingSlash: true,
+  }),
 };
 
 // Sentry configuration options

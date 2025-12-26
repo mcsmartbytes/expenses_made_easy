@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import Navigation from '@/components/Navigation';
 import { supabase } from '@/utils/supabase';
+import { nativeMileageTracker, TripData } from '@/utils/nativeMileageTracker';
 
 interface MileageTrip {
   id: string;
@@ -32,6 +33,7 @@ export default function MileagePage() {
   const [isBusiness, setIsBusiness] = useState(true);
   const [rate, setRate] = useState(0.67);
   const [idleTime, setIdleTime] = useState(0); // seconds idle
+  const [isNativeMode, setIsNativeMode] = useState(false); // Track if using native Capacitor
 
   const [typeFilter, setTypeFilter] = useState<'all' | 'business' | 'personal'>('all');
   const [dateFilter, setDateFilter] = useState<'all' | 'month' | 'quarter' | 'year'>('all');
@@ -54,12 +56,54 @@ export default function MileagePage() {
 
   useEffect(() => {
     loadTrips();
-    startSpeedMonitoring();
+    initializeTracking();
     return () => {
       if (watchIdRef.current !== null) navigator.geolocation.clearWatch(watchIdRef.current);
       if (idleCheckIntervalRef.current) clearInterval(idleCheckIntervalRef.current);
+      nativeMileageTracker.destroy();
     };
   }, []);
+
+  // Initialize tracking - try native first, fall back to web
+  async function initializeTracking() {
+    // Try to initialize native tracking (Capacitor)
+    const nativeInitialized = await nativeMileageTracker.initialize({
+      onDistanceUpdate: (dist) => {
+        distanceRef.current = dist;
+        setDistance(dist);
+      },
+      onSpeedUpdate: (speed) => {
+        setCurrentSpeed(speed);
+      },
+      onAutoStart: () => {
+        setIsTracking(true);
+        isTrackingRef.current = true;
+        autoStartTriggered.current = true;
+        const state = nativeMileageTracker.getState();
+        if (state.startLocation) setStartLocation(state.startLocation);
+      },
+      onAutoStop: async (tripData: TripData) => {
+        await saveTrip(tripData, true);
+        setIsTracking(false);
+        isTrackingRef.current = false;
+        setDistance(0);
+        distanceRef.current = 0;
+      },
+      onError: (error) => {
+        console.error('Native tracker error:', error);
+      },
+    });
+
+    if (nativeInitialized) {
+      setIsNativeMode(true);
+      console.log('Using native background tracking');
+    } else {
+      // Fall back to web-based tracking
+      setIsNativeMode(false);
+      console.log('Using web-based tracking (foreground only)');
+      startSpeedMonitoring();
+    }
+  }
 
   useEffect(() => { applyFilters(); }, [trips, typeFilter, dateFilter]);
 
@@ -207,7 +251,18 @@ export default function MileagePage() {
     setDistance(0);
     lastMovementTimeRef.current = Date.now();
 
-    // Set initial position for distance tracking
+    // Use native tracking if available
+    if (isNativeMode) {
+      await nativeMileageTracker.startTracking(initialLat, initialLon);
+      const state = nativeMileageTracker.getState();
+      if (state.startLocation) {
+        setStartLocation(state.startLocation);
+        startLocationRef.current = state.startLocation;
+      }
+      return;
+    }
+
+    // Web-based tracking fallback
     if (initialLat !== undefined && initialLon !== undefined) {
       lastPositionRef.current = { lat: initialLat, lon: initialLon, timestamp: Date.now() };
       const start = await reverseGeocode(initialLat, initialLon);
@@ -227,11 +282,63 @@ export default function MileagePage() {
     }
   }
 
+  // Helper to save trip data (used by both web and native tracking)
+  async function saveTrip(tripData: TripData, isAutoSave: boolean) {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const amount = tripData.distance * rate;
+      const tripPurpose = isAutoSave ? (purposeRef.current || 'Auto-saved trip') : (purpose || null);
+      const tripIsBusiness = isAutoSave ? isBusinessRef.current : isBusiness;
+
+      await supabase.from('mileage').insert({
+        user_id: user.id,
+        date: new Date().toISOString().split('T')[0],
+        distance: tripData.distance,
+        start_location: tripData.startLocation || null,
+        end_location: tripData.endLocation || null,
+        purpose: tripPurpose,
+        is_business: tripIsBusiness,
+        rate,
+        amount
+      });
+
+      setPurpose('');
+      setIsBusiness(true);
+      purposeRef.current = '';
+      isBusinessRef.current = true;
+      loadTrips();
+
+      if (isAutoSave) {
+        console.log(`Trip auto-saved: ${tripData.distance.toFixed(2)} miles`);
+      }
+    } catch (error) {
+      console.error('Error saving trip:', error);
+    }
+  }
+
   async function handleStopTracking(isAutoSave = false) {
     setIsTracking(false);
     isTrackingRef.current = false;
     autoStartTriggered.current = false; // Allow auto-start for next trip
 
+    // Use native tracking if available
+    if (isNativeMode) {
+      const tripData = await nativeMileageTracker.stopTracking();
+      if (tripData && tripData.distance >= 0.01) {
+        await saveTrip(tripData, isAutoSave);
+      } else {
+        console.log('Trip too short to save');
+        setPurpose('');
+        setIsBusiness(true);
+      }
+      distanceRef.current = 0;
+      setDistance(0);
+      return;
+    }
+
+    // Web-based tracking fallback
     const finalDistance = distanceRef.current;
 
     // Don't save if no distance was recorded
@@ -253,34 +360,18 @@ export default function MileagePage() {
         endLocation = await reverseGeocode(lastPositionRef.current.lat, lastPositionRef.current.lon);
       }
 
-      const amount = finalDistance * rate;
-      const tripPurpose = isAutoSave ? (purposeRef.current || 'Auto-saved trip') : (purpose || null);
-      const tripIsBusiness = isAutoSave ? isBusinessRef.current : isBusiness;
-
-      await supabase.from('mileage').insert({
-        user_id: user.id,
-        date: new Date().toISOString().split('T')[0],
+      const tripData: TripData = {
         distance: finalDistance,
-        start_location: startLocationRef.current || null,
-        end_location: endLocation || null,
-        purpose: tripPurpose,
-        is_business: tripIsBusiness,
-        rate,
-        amount
-      });
+        startLocation: startLocationRef.current || null,
+        endLocation: endLocation || null,
+        startTime: new Date(),
+        endTime: new Date(),
+      };
+
+      await saveTrip(tripData, isAutoSave);
 
       distanceRef.current = 0;
       setDistance(0);
-      setPurpose('');
-      setIsBusiness(true);
-      purposeRef.current = '';
-      isBusinessRef.current = true;
-      loadTrips();
-
-      if (isAutoSave) {
-        // Could add a notification here
-        console.log(`Trip auto-saved: ${finalDistance.toFixed(2)} miles`);
-      }
     } catch (error) {
       console.error('Error saving trip:', error);
     }
@@ -356,9 +447,24 @@ export default function MileagePage() {
         <div className="bg-white rounded-lg shadow p-6 mb-6">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h2 className="text-xl font-semibold">Auto-Tracking</h2>
+              <div className="flex items-center gap-2">
+                <h2 className="text-xl font-semibold">Auto-Tracking</h2>
+                {isNativeMode ? (
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">
+                    Background Enabled
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700">
+                    Foreground Only
+                  </span>
+                )}
+              </div>
               <p className="text-sm text-gray-600">Automatically starts when you drive over 5 mph</p>
-              <p className="text-xs text-gray-400 mt-1">Auto-saves after 15 min idle</p>
+              <p className="text-xs text-gray-400 mt-1">
+                {isNativeMode
+                  ? 'Tracks in background - no need to keep app open'
+                  : 'Keep app open while driving for tracking'}
+              </p>
             </div>
             <div className="text-right">
               <p className="text-3xl font-bold text-blue-600">{currentSpeed.toFixed(1)} mph</p>
