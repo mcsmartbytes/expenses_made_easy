@@ -25,11 +25,15 @@ Business expense tracking app for self-employed individuals and small businesses
 
 1. **Expense Tracking** - CRUD with categories, business/personal classification
 2. **Receipt OCR** - AI extracts vendor, amount, tax breakdown from photos
-3. **Mileage Tracking** - GPS auto-tracking, $0.67/mile IRS rate
+3. **Mileage Tracking** - GPS auto-tracking, $0.67/mile IRS rate, native mobile support via Capacitor
 4. **Recurring Expenses** - Weekly/monthly/quarterly/annual auto-generation
 5. **Tax Reports** - Schedule C breakdown, CSV export
 6. **PWA** - Installable on mobile, offline support
 7. **Budgets** - Category-based spending limits
+8. **Personal/Business Mode** - Global toggle that sets defaults for new expenses/mileage
+9. **Smart Insights** - Actionable insights with quick actions (Set Budget, Mark Expected)
+10. **Price Tracker** - Vendor comparison with savings recommendations
+11. **User-Confirmed Learning** - Learns from user corrections, creates merchant/item rules
 
 ---
 
@@ -40,24 +44,37 @@ app/
 ├── api/
 │   ├── categories/           # GET/POST/PUT/DELETE
 │   ├── ocr-receipt/          # POST - AI receipt scan
+│   ├── insights/             # Smart insights generation
+│   ├── price-history/        # Price tracking & vendor comparison
+│   ├── merchant-rules/       # User-confirmed learning rules
+│   ├── item-rules/           # Item-level auto-categorization
 │   └── recurring-expenses/   # CRUD + /generate
-├── expense-dashboard/        # Main dashboard
+├── (expenses)/               # Route group for expense pages
+│   ├── mileage/              # GPS tracking + history
+│   ├── price-tracker/        # Vendor comparison UI
+│   └── reports/              # Tax reports
 ├── expenses/                 # List + /new for adding
-├── recurring/                # Recurring expense management
-├── mileage/                  # GPS tracking + history
-├── reports/                  # Tax reports
-├── profile/                  # Categories + industry
-├── budgets/                  # Budget tracking
-├── receipts/                 # Receipt gallery
+├── expense-dashboard/        # Main dashboard (legacy route)
 └── auth/                     # login/signup/callback
 
 components/
-└── Navigation.tsx            # Main nav (8 items)
+├── Navigation.tsx            # Main nav with mode toggle
+├── Providers.tsx             # App-wide context providers
+├── ActionableInsights.tsx    # Smart insights with quick actions
+└── LearningPromptModal.tsx   # User-confirmed learning UI
+
+contexts/
+└── UserModeContext.tsx       # Personal/Business mode state
+
+lib/
+├── priceTracking.ts          # Price comparison & savings logic
+├── learningDetection.ts      # Detects user corrections
+└── moneyMemory.ts            # Price memory & suggestions
 
 utils/
 ├── supabase.ts               # Client-side Supabase
 ├── supabaseAdmin.ts          # Server-side (bypasses RLS)
-└── industryCategories.ts     # 13 industry presets
+└── nativeMileageTracker.ts   # Capacitor native GPS tracking
 ```
 
 ---
@@ -205,3 +222,67 @@ This app can be:
 2. **Embedded** - Integrated via iframe into client websites
 
 Demo integration at: https://sealn-super-site.vercel.app/admin/expense-tracker
+
+---
+
+## Personal/Business Mode
+
+Global mode toggle in navigation that affects default behavior:
+
+```typescript
+import { useUserMode } from '@/contexts/UserModeContext';
+
+const { mode, toggleMode, isBusiness, isPersonal } = useUserMode();
+// mode: 'business' | 'personal'
+// Persisted to localStorage
+```
+
+- New expenses default `is_business` based on current mode
+- Mileage trips default to current mode
+- Visual indicator when expense differs from current mode
+
+---
+
+## Smart Insights System
+
+Insights are generated via `/api/insights` and displayed in `ActionableInsights.tsx`:
+
+| Insight Type | Quick Actions |
+|--------------|---------------|
+| `spending_increase` | Set Budget, Mark Expected |
+| `budget_warning` | Adjust Budget, Mark Expected |
+| `savings_opportunity` | Take Action, Dismiss |
+| `tax_tip` | View Report |
+| `mileage_deduction` | View Mileage |
+
+Mileage deduction insights show: "You added $X in deductions just by driving!"
+
+---
+
+## Price Tracker & Vendor Comparison
+
+Enhanced savings recommendations:
+- "You've overpaid $X on this item. Vendor B is 18% cheaper!"
+- "This item is 15% cheaper at Vendor B"
+- "Save 12% by shopping at Vendor A instead of Vendor B"
+
+Vendor pills show percentage difference (+15%, +20%) for quick comparison.
+
+---
+
+## Mobile App (Capacitor)
+
+Native Android/iOS support via Capacitor for background mileage tracking:
+
+```
+android/                      # Android Studio project
+capacitor.config.ts           # Capacitor configuration
+```
+
+Build commands:
+```bash
+npm run build                 # Build web app
+npx cap sync                  # Sync to native projects
+```
+
+Android project location (Windows): `C:\Users\mcsma\expenses_android`

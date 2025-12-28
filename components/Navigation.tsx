@@ -2,9 +2,11 @@
 
 import Link from 'next/link';
 import { useState } from 'react';
+import { useUserMode } from '@/contexts/UserModeContext';
 
 export default function Navigation({ variant = 'expenses' }: { variant?: string }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const { mode, toggleMode, isBusiness } = useUserMode();
 
   const navLinks = [
     { href: '/expenses/dashboard', label: 'Dashboard' },
@@ -52,9 +54,22 @@ export default function Navigation({ variant = 'expenses' }: { variant?: string 
 
         {/* Right side */}
         <div className="flex items-center gap-3">
-          <span className="hidden sm:inline text-[11px] text-slate-300">
-            Track smarter. Save more.
-          </span>
+          {/* Mode Toggle */}
+          <button
+            onClick={toggleMode}
+            className={`hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+              isBusiness
+                ? 'bg-blue-600/20 text-blue-300 border border-blue-500/30 hover:bg-blue-600/30'
+                : 'bg-emerald-600/20 text-emerald-300 border border-emerald-500/30 hover:bg-emerald-600/30'
+            }`}
+            title={`Switch to ${isBusiness ? 'Personal' : 'Business'} Mode`}
+          >
+            <span className="text-sm">{isBusiness ? '💼' : '👤'}</span>
+            <span>{isBusiness ? 'Business' : 'Personal'}</span>
+            <svg className="w-3 h-3 opacity-60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 9l4-4 4 4m0 6l-4 4-4-4" />
+            </svg>
+          </button>
 
           {/* Mobile menu button */}
           <button
@@ -82,6 +97,21 @@ export default function Navigation({ variant = 'expenses' }: { variant?: string 
       {/* Mobile menu dropdown */}
       {mobileMenuOpen && (
         <div className="md:hidden absolute top-14 left-0 right-0 bg-slate-900 border-t border-slate-700 shadow-lg z-50">
+          {/* Mode Toggle - Mobile */}
+          <div className="px-3 pt-3">
+            <button
+              onClick={toggleMode}
+              className={`w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                isBusiness
+                  ? 'bg-blue-600/20 text-blue-300 border border-blue-500/30'
+                  : 'bg-emerald-600/20 text-emerald-300 border border-emerald-500/30'
+              }`}
+            >
+              <span className="text-base">{isBusiness ? '💼' : '👤'}</span>
+              <span>{isBusiness ? 'Business Mode' : 'Personal Mode'}</span>
+              <span className="text-xs opacity-60 ml-1">(tap to switch)</span>
+            </button>
+          </div>
           <div className="grid grid-cols-2 gap-1 p-3">
             {navLinks.map((link) => (
               <Link

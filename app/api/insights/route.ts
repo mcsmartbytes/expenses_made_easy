@@ -53,12 +53,21 @@ export async function GET(request: NextRequest) {
       .select('*')
       .eq('user_id', userId);
 
-    // Fetch mileage
+    // Fetch mileage (current month)
     const { data: mileageData } = await supabaseAdmin
       .from('mileage')
       .select('distance, is_business, date')
       .eq('user_id', userId)
       .gte('date', currentMonthStart.toISOString().split('T')[0]);
+
+    // Fetch year-to-date mileage
+    const yearStart = new Date(now.getFullYear(), 0, 1).toISOString().split('T')[0];
+    const { data: ytdMileageData } = await supabaseAdmin
+      .from('mileage')
+      .select('distance, is_business, amount')
+      .eq('user_id', userId)
+      .eq('is_business', true)
+      .gte('date', yearStart);
 
     // Calculate totals
     const currentTotal = (currentExpenses || []).reduce((sum, e) => sum + Number(e.amount), 0);
@@ -256,6 +265,41 @@ export async function GET(request: NextRequest) {
           label: 'Log Mileage',
           href: '/mileage',
         },
+      });
+    }
+
+    // 8. Mileage deduction highlight - show when user has tracked meaningful mileage
+    if (mileageDeduction >= 10) {
+      const tripCount = (mileageData || []).filter(m => m.is_business).length;
+      insights.push({
+        id: 'mileage_deduction_highlight',
+        type: 'tax_tip',
+        priority: mileageDeduction >= 100 ? 'medium' : 'low',
+        title: 'Driving = Tax Savings',
+        message: `You added $${mileageDeduction.toFixed(2)} in deductions just by driving! (${businessMileage.toFixed(1)} miles across ${tripCount} trip${tripCount !== 1 ? 's' : ''})`,
+        action: {
+          label: 'View Mileage',
+          href: '/mileage',
+        },
+        data: { mileageDeduction, businessMileage, tripCount },
+      });
+    }
+
+    // 9. Year-to-date mileage achievement
+    const ytdMiles = (ytdMileageData || []).reduce((sum, m) => sum + Number(m.distance), 0);
+    const ytdMileageDeduction = (ytdMileageData || []).reduce((sum, m) => sum + Number(m.amount), 0);
+    if (ytdMileageDeduction >= 500) {
+      insights.push({
+        id: 'ytd_mileage_achievement',
+        type: 'achievement',
+        priority: 'low',
+        title: `${now.getFullYear()} Mileage Tracker`,
+        message: `You've driven ${ytdMiles.toFixed(0)} business miles this year = $${ytdMileageDeduction.toFixed(2)} in tax deductions!`,
+        action: {
+          label: 'View Tax Report',
+          href: '/reports',
+        },
+        data: { ytdMiles, ytdMileageDeduction },
       });
     }
 

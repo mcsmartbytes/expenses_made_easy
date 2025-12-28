@@ -15,6 +15,7 @@ import {
   CorrectionContext,
 } from '@/lib/learningDetection';
 import AchievementToast from '@/components/AchievementToast';
+import { useUserMode } from '@/contexts/UserModeContext';
 
 interface Category {
   id: string;
@@ -42,6 +43,7 @@ interface RuleMatch {
 
 export default function NewExpensePage() {
   const router = useRouter();
+  const { isBusiness: defaultIsBusiness } = useUserMode();
   const [loading, setLoading] = useState(false);
   const [loadingCategories, setLoadingCategories] = useState(true);
   const [scanningReceipt, setScanningReceipt] = useState(false);
@@ -83,11 +85,18 @@ export default function NewExpensePage() {
     date: new Date().toISOString().split('T')[0],
     vendor: '',
     payment_method: 'credit',
-    is_business: true,
+    is_business: defaultIsBusiness,
     notes: '',
     job_id: '',
     po_number: '',
   });
+
+  // Update is_business when mode changes (only if not manually set by rule)
+  useEffect(() => {
+    if (!ruleApplied) {
+      setFormData(prev => ({ ...prev, is_business: defaultIsBusiness }));
+    }
+  }, [defaultIsBusiness, ruleApplied]);
 
   useEffect(() => {
     loadCategories();
@@ -911,6 +920,11 @@ export default function NewExpensePage() {
                 />
                 <span className="text-sm font-medium">This is a business expense</span>
               </label>
+              {formData.is_business !== defaultIsBusiness && (
+                <p className="text-xs text-amber-600 mt-1 ml-8">
+                  Note: You're in {defaultIsBusiness ? 'Business' : 'Personal'} mode, but this expense is marked as {formData.is_business ? 'Business' : 'Personal'}
+                </p>
+              )}
             </div>
 
             {/* NEW: Job selection */}

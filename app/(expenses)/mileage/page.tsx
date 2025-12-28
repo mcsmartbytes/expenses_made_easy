@@ -5,6 +5,7 @@ import Link from 'next/link';
 import Navigation from '@/components/Navigation';
 import { supabase } from '@/utils/supabase';
 import { nativeMileageTracker, TripData } from '@/utils/nativeMileageTracker';
+import { useUserMode } from '@/contexts/UserModeContext';
 
 interface MileageTrip {
   id: string;
@@ -23,6 +24,7 @@ const MIN_ACCURACY_METERS = 50; // Ignore GPS readings with accuracy worse than 
 const MIN_SPEED_MPH = 5; // Auto-start threshold
 
 export default function MileagePage() {
+  const { isBusiness: defaultIsBusiness } = useUserMode();
   const [trips, setTrips] = useState<MileageTrip[]>([]);
   const [filteredTrips, setFilteredTrips] = useState<MileageTrip[]>([]);
   const [isTracking, setIsTracking] = useState(false);
@@ -30,7 +32,7 @@ export default function MileagePage() {
   const [distance, setDistance] = useState(0);
   const [startLocation, setStartLocation] = useState('');
   const [purpose, setPurpose] = useState('');
-  const [isBusiness, setIsBusiness] = useState(true);
+  const [isBusiness, setIsBusiness] = useState(defaultIsBusiness);
   const [rate, setRate] = useState(0.67);
   const [idleTime, setIdleTime] = useState(0); // seconds idle
   const [isNativeMode, setIsNativeMode] = useState(false); // Track if using native Capacitor
@@ -63,6 +65,13 @@ export default function MileagePage() {
       nativeMileageTracker.destroy();
     };
   }, []);
+
+  // Update isBusiness when mode changes (only when not tracking)
+  useEffect(() => {
+    if (!isTracking) {
+      setIsBusiness(defaultIsBusiness);
+    }
+  }, [defaultIsBusiness, isTracking]);
 
   // Initialize tracking - try native first, fall back to web
   async function initializeTracking() {

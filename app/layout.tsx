@@ -1,6 +1,7 @@
 import './globals.css'
 import type { Metadata, Viewport } from 'next'
 import InstallPrompt from '@/components/InstallPrompt'
+import Providers from '@/components/Providers'
 
 export const metadata: Metadata = {
   title: 'Expenses Made Easy',
@@ -46,8 +47,10 @@ export default function RootLayout({
         <meta name="mobile-web-app-capable" content="yes" />
       </head>
       <body>
-        {children}
-        <InstallPrompt />
+        <Providers>
+          {children}
+          <InstallPrompt />
+        </Providers>
         <script
           dangerouslySetInnerHTML={{
             __html: `

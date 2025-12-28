@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 interface Insight {
   id: string;
@@ -18,6 +19,14 @@ interface Insight {
 
 interface ActionableInsightsProps {
   userId: string;
+  onCreateBudget?: (category: string) => void;
+}
+
+// Quick action definitions based on insight type
+interface QuickAction {
+  label: string;
+  icon: string;
+  onClick: () => void;
 }
 
 const TYPE_CONFIG: Record<string, { icon: string; bgClass: string; borderClass: string; textClass: string }> = {
@@ -65,10 +74,12 @@ const TYPE_CONFIG: Record<string, { icon: string; bgClass: string; borderClass: 
   },
 };
 
-export default function ActionableInsights({ userId }: ActionableInsightsProps) {
+export default function ActionableInsights({ userId, onCreateBudget }: ActionableInsightsProps) {
+  const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [insights, setInsights] = useState<Insight[]>([]);
   const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set());
+  const [expectedIds, setExpectedIds] = useState<Set<string>>(new Set());
   const [expanded, setExpanded] = useState(true);
 
   useEffect(() => {
@@ -86,6 +97,20 @@ export default function ActionableInsights({ userId }: ActionableInsightsProps) 
         setDismissedIds(new Set(valid));
       } catch {
         // Ignore invalid data
+      }
+    }
+    // Load expected insights from localStorage (persist longer - 30 days)
+    const expectedSaved = localStorage.getItem('expectedInsights');
+    if (expectedSaved) {
+      try {
+        const parsed = JSON.parse(expectedSaved);
+        const now = Date.now();
+        const valid = Object.entries(parsed)
+          .filter(([_, timestamp]) => now - (timestamp as number) < 30 * 24 * 60 * 60 * 1000)
+          .map(([id]) => id);
+        setExpectedIds(new Set(valid));
+      } catch {
+        // Ignore
       }
     }
   }, [userId]);
@@ -122,7 +147,90 @@ export default function ActionableInsights({ userId }: ActionableInsightsProps) 
     });
   };
 
-  const visibleInsights = insights.filter(i => !dismissedIds.has(i.id));
+  const markAsExpected = (id: string) => {
+    setExpectedIds(prev => {
+      const newSet = new Set(prev);
+      newSet.add(id);
+      const saved = localStorage.getItem('expectedInsights');
+      let data: Record<string, number> = {};
+      try {
+        data = saved ? JSON.parse(saved) : {};
+      } catch {
+        // Ignore
+      }
+      data[id] = Date.now();
+      localStorage.setItem('expectedInsights', JSON.stringify(data));
+      return newSet;
+    });
+    // Also dismiss it
+    dismissInsight(id);
+  };
+
+  const handleSetBudget = (category: string) => {
+    if (onCreateBudget) {
+      onCreateBudget(category);
+    } else {
+      router.push(`/budgets?create=${encodeURIComponent(category)}`);
+    }
+  };
+
+  // Get quick actions based on insight type and data
+  const getQuickActions = (insight: Insight): QuickAction[] => {
+    const actions: QuickAction[] = [];
+
+    switch (insight.type) {
+      case 'spending_increase':
+        if (insight.data?.category) {
+          actions.push({
+            label: 'Set Budget',
+            icon: '💰',
+            onClick: () => handleSetBudget(insight.data!.category),
+          });
+        }
+        actions.push({
+          label: 'Expected',
+          icon: '✓',
+          onClick: () => markAsExpected(insight.id),
+        });
+        break;
+
+      case 'budget_warning':
+        actions.push({
+          label: 'Adjust Budget',
+          icon: '📊',
+          onClick: () => router.push('/budgets'),
+        });
+        actions.push({
+          label: 'Expected',
+          icon: '✓',
+          onClick: () => markAsExpected(insight.id),
+        });
+        break;
+
+      case 'pattern':
+      case 'savings_opportunity':
+        actions.push({
+          label: 'Take Action',
+          icon: '→',
+          onClick: () => insight.action?.href && router.push(insight.action.href),
+        });
+        actions.push({
+          label: 'Dismiss',
+          icon: '✗',
+          onClick: () => dismissInsight(insight.id),
+        });
+        break;
+
+      case 'tax_tip':
+      case 'achievement':
+        // These are informational, just allow dismissal
+        break;
+    }
+
+    return actions;
+  };
+
+  const visibleInsights = insights.filter(i => !dismissedIds.has(i.id) && !expectedIds.has(i.id));
 
   if (loading) {
     return (
@@ -210,17 +318,45 @@ export default function ActionableInsights({ userId }: ActionableInsightsProps) 
                     <p className={`text-xs mt-0.5 ${config.textClass} opacity-80`}>
                       {insight.message}
                     </p>
-                    {insight.action && (
-                      <Link
-                        href={insight.action.href}
-                        className={`inline-flex items-center gap-1 mt-2 text-xs font-medium ${config.textClass} hover:underline`}
-                      >
-                        {insight.action.label}
-                        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                        </svg>
-                      </Link>
-                    )}
+                    {/* Quick Actions */}
+                    {(() => {
+                      const quickActions = getQuickActions(insight);
+                      if (quickActions.length > 0) {
+                        return (
+                          <div className="flex flex-wrap gap-1.5 mt-2">
+                            {quickActions.map((action, idx) => (
+                              <button
+                                key={idx}
+                                onClick={action.onClick}
+                                className={`inline-flex items-center gap-1 px-2 py-1 text-[10px] font-medium rounded-md border transition-colors ${
+                                  action.label === 'Expected'
+                                    ? 'bg-white/50 border-gray-300 text-gray-600 hover:bg-white hover:border-gray-400'
+                                    : `${config.bgClass} ${config.borderClass} ${config.textClass} hover:opacity-80`
+                                }`}
+                              >
+                                <span>{action.icon}</span>
+                                {action.label}
+                              </button>
+                            ))}
+                          </div>
+                        );
+                      }
+                      // Fallback to original link action
+                      if (insight.action) {
+                        return (
+                          <Link
+                            href={insight.action.href}
+                            className={`inline-flex items-center gap-1 mt-2 text-xs font-medium ${config.textClass} hover:underline`}
+                          >
+                            {insight.action.label}
+                            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                            </svg>
+                          </Link>
+                        );
+                      }
+                      return null;
+                    })()}
                   </div>
                 </div>
               </div>

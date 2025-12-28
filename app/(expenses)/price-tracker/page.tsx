@@ -569,27 +569,40 @@ export default function PriceTrackerPage() {
                         )}
                       </div>
                       <div className="flex flex-wrap gap-2">
-                        {item.vendors.map((vendor, vIdx) => (
-                          <div
-                            key={vIdx}
-                            className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm ${
-                              vIdx === 0
-                                ? 'bg-green-900/30 border border-green-500/30'
-                                : vIdx === item.vendors.length - 1 && item.vendors.length > 1
-                                  ? 'bg-red-900/20 border border-red-500/20'
-                                  : 'bg-slate-700/50 border border-slate-600'
-                            }`}
-                          >
-                            <span className="text-slate-300">{vendor.vendor}</span>
-                            <span className={vIdx === 0 ? 'text-green-400 font-medium' : 'text-white'}>
-                              {formatPrice(vendor.avg_price)}
-                            </span>
-                            {vIdx === 0 && item.vendors.length > 1 && (
-                              <span className="text-xs text-green-400">Best</span>
-                            )}
-                          </div>
-                        ))}
+                        {item.vendors.map((vendor, vIdx) => {
+                          const bestPrice = item.best_vendor?.avg_price || item.vendors[0].avg_price;
+                          const priceDiffPct = vIdx > 0 ? ((vendor.avg_price - bestPrice) / bestPrice * 100) : 0;
+                          return (
+                            <div
+                              key={vIdx}
+                              className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm ${
+                                vIdx === 0
+                                  ? 'bg-green-900/30 border border-green-500/30'
+                                  : vIdx === item.vendors.length - 1 && item.vendors.length > 1
+                                    ? 'bg-red-900/20 border border-red-500/20'
+                                    : 'bg-slate-700/50 border border-slate-600'
+                              }`}
+                            >
+                              <span className="text-slate-300">{vendor.vendor}</span>
+                              <span className={vIdx === 0 ? 'text-green-400 font-medium' : 'text-white'}>
+                                {formatPrice(vendor.avg_price)}
+                              </span>
+                              {vIdx === 0 && item.vendors.length > 1 && (
+                                <span className="text-xs text-green-400">Best</span>
+                              )}
+                              {vIdx > 0 && priceDiffPct > 0 && (
+                                <span className="text-xs text-red-400">+{priceDiffPct.toFixed(0)}%</span>
+                              )}
+                            </div>
+                          );
+                        })}
                       </div>
+                      {/* Show savings message for items with significant price difference */}
+                      {item.price_spread_pct >= 10 && item.best_vendor && item.worst_vendor && (
+                        <p className="text-xs text-green-400 mt-2">
+                          {item.price_spread_pct.toFixed(0)}% cheaper at {item.best_vendor.vendor} vs {item.worst_vendor.vendor}
+                        </p>
+                      )}
                     </div>
                   ))}
                 </div>

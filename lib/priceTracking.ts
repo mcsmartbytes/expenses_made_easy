@@ -400,9 +400,20 @@ export function calculateSavingsOpportunity(
   // Only return if there's meaningful savings
   if (overpaidAmount < 0.50) return null;
 
-  const recommendation = overpaidPct >= 10
-    ? `Consider buying at ${bestVendor.vendor} - ${overpaidPct.toFixed(0)}% cheaper on average`
-    : `${bestVendor.vendor} has slightly better prices`;
+  // Calculate how much cheaper at best vendor
+  const priceDiffPct = ((worstVendor.avg_price - bestVendor.avg_price) / worstVendor.avg_price) * 100;
+
+  // Create impactful recommendation message
+  let recommendation: string;
+  if (overpaidAmount >= 10) {
+    recommendation = `You've overpaid $${overpaidAmount.toFixed(2)} on this item. ${bestVendor.vendor} is ${priceDiffPct.toFixed(0)}% cheaper!`;
+  } else if (priceDiffPct >= 15) {
+    recommendation = `This item is ${priceDiffPct.toFixed(0)}% cheaper at ${bestVendor.vendor}`;
+  } else if (priceDiffPct >= 10) {
+    recommendation = `Save ${priceDiffPct.toFixed(0)}% by shopping at ${bestVendor.vendor} instead of ${worstVendor.vendor}`;
+  } else {
+    recommendation = `${bestVendor.vendor} has slightly better prices ($${(worstVendor.avg_price - bestVendor.avg_price).toFixed(2)} less)`;
+  }
 
   return {
     item_name: itemName,
