@@ -3,10 +3,17 @@
 import Link from 'next/link';
 import { useState } from 'react';
 import { useUserMode } from '@/contexts/UserModeContext';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function Navigation({ variant = 'expenses' }: { variant?: string }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { mode, toggleMode, isBusiness } = useUserMode();
+  const { isEmbedded } = useAuth();
+
+  // Hide navigation in embedded mode for cleaner iframe experience
+  if (isEmbedded) {
+    return null;
+  }
 
   const navLinks = [
     { href: '/expenses/dashboard', label: 'Dashboard' },

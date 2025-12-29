@@ -1,6 +1,7 @@
 'use client';
 
 import { ReactNode } from 'react';
+import { AuthProvider } from '@/contexts/AuthContext';
 import { UserModeProvider } from '@/contexts/UserModeContext';
 
 interface ProvidersProps {
@@ -9,8 +10,10 @@ interface ProvidersProps {
 
 export default function Providers({ children }: ProvidersProps) {
   return (
-    <UserModeProvider>
-      {children}
-    </UserModeProvider>
+    <AuthProvider>
+      <UserModeProvider>
+        {children}
+      </UserModeProvider>
+    </AuthProvider>
   );
 }
