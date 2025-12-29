@@ -5,6 +5,9 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
 export function createClient() {
   return createSupabaseClient(supabaseUrl, supabaseAnonKey, {
+    db: {
+      schema: 'expenses'  // Use expenses schema in unified database
+    },
     auth: {
       persistSession: true,
       autoRefreshToken: true,
