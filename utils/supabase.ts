@@ -13,7 +13,7 @@ if (!supabaseUrl || !supabaseAnonKey) {
 export function createClient() {
   return createSupabaseClient(supabaseUrl!, supabaseAnonKey!, {
     db: {
-      schema: 'expenses'  // Use expenses schema in unified database
+      schema: 'public'  // Use public schema
     },
     auth: {
       persistSession: true,
