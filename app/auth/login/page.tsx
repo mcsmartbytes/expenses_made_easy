@@ -32,7 +32,12 @@ export default function LoginPage() {
         router.push(redirect);
       }
     } catch (error: any) {
-      setError(error.message || 'Failed to sign in');
+      // Provide more helpful error messages for common issues
+      if (error.message === 'Failed to fetch' || error.name === 'TypeError') {
+        setError('Unable to connect to the server. Please check your internet connection and try again.');
+      } else {
+        setError(error.message || 'Failed to sign in');
+      }
     } finally {
       setLoading(false);
     }

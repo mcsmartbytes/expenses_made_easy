@@ -1,12 +1,19 @@
 import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+if (!supabaseUrl || !supabaseAnonKey) {
+  console.error('Missing Supabase environment variables:', {
+    url: supabaseUrl ? 'set' : 'MISSING',
+    key: supabaseAnonKey ? 'set' : 'MISSING'
+  });
+}
 
 export function createClient() {
-  return createSupabaseClient(supabaseUrl, supabaseAnonKey, {
+  return createSupabaseClient(supabaseUrl!, supabaseAnonKey!, {
     db: {
-      schema: 'expenses'  // Use expenses schema in unified database
+      schema: 'public'  // Use public schema in unified database
     },
     auth: {
       persistSession: true,
