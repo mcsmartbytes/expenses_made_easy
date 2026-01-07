@@ -67,3 +67,4 @@ App.tsx
 index.ts
 app.json
 eas.json
+.vercel
