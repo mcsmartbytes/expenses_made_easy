@@ -3,7 +3,7 @@
 @tailwind utilities;
 
 :root {
-  --background: #F7F8FA;
+  --background: #E2E6EC;
   --foreground: #171717;
 }
 
@@ -12,7 +12,7 @@ html, body {
 }
 
 body {
-  background: linear-gradient(135deg, #F8F9FB 0%, #EEF1F5 50%, #E8ECF1 100%);
+  background: linear-gradient(135deg, #E2E6EC 0%, #D1D8E0 50%, #C4CDD8 100%);
   background-attachment: fixed;
   color: var(--foreground);
 }
