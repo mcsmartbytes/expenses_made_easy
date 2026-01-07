@@ -7,9 +7,19 @@
   --foreground: #171717;
 }
 
+html, body {
+  min-height: 100vh;
+}
+
 body {
-  background-color: var(--background);
+  background: linear-gradient(135deg, #F8F9FB 0%, #EEF1F5 50%, #E8ECF1 100%);
+  background-attachment: fixed;
   color: var(--foreground);
+}
+
+/* Override any bg-gray-50 or bg-white on main containers */
+.min-h-screen {
+  background: transparent !important;
 }
 
 /* PWA Install Prompt Animation */
