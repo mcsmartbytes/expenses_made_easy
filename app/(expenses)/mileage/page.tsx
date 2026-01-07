@@ -20,7 +20,7 @@ interface MileageTrip {
 }
 
 const IDLE_TIMEOUT_MS = 15 * 60 * 1000; // 15 minutes
-const MIN_ACCURACY_METERS = 50; // Ignore GPS readings with accuracy worse than 50m
+const MIN_ACCURACY_METERS = 100; // Ignore GPS readings with accuracy worse than 100m (was 50m - too strict for mobile)
 const MIN_SPEED_MPH = 5; // Auto-start threshold
 
 export default function MileagePage() {
@@ -192,17 +192,14 @@ export default function MileagePage() {
 
         setCurrentSpeed(speedMph);
 
-        // Skip inaccurate readings
-        if (accuracy > MIN_ACCURACY_METERS) {
-          console.log(`Skipping inaccurate GPS reading: ${accuracy}m accuracy`);
-          return;
-        }
-
-        // Auto-start when driving
+        // Auto-start when driving (check this regardless of accuracy)
         if (speedMph >= MIN_SPEED_MPH && !isTrackingRef.current && !autoStartTriggered.current) {
           autoStartTriggered.current = true;
           handleStartTracking(latitude, longitude);
         }
+
+        // For distance accumulation, be more careful with accuracy
+        const isAccuracyGood = accuracy <= MIN_ACCURACY_METERS;
 
         // Accumulate distance while tracking
         if (isTrackingRef.current && lastPositionRef.current) {
@@ -215,22 +212,37 @@ export default function MileagePage() {
               longitude
             );
 
-            // Only add distance if it's reasonable (not a GPS jump)
-            // Max reasonable distance at highway speed in ~5 seconds is about 0.1 miles
-            if (distanceMiles > 0.001 && distanceMiles < 0.5) {
-              distanceRef.current += distanceMiles;
-              setDistance(distanceRef.current);
+            // Calculate time between readings
+            const timeDiffSeconds = (timestamp - lastPositionRef.current.timestamp) / 1000;
 
-              // Update last movement time if actually moving
-              if (speedMph >= 2) {
-                lastMovementTimeRef.current = Date.now();
+            // Dynamic max distance based on time elapsed and max realistic speed (100 mph)
+            // This allows for longer gaps without losing distance
+            const maxReasonableDistance = Math.min(0.5, (timeDiffSeconds / 3600) * 100);
+
+            // Only add distance if it's reasonable (not a GPS jump)
+            // More lenient: allow if accuracy is good OR if distance is very small (likely real movement)
+            if (distanceMiles > 0.001 && distanceMiles < maxReasonableDistance) {
+              // If accuracy is bad but distance is tiny, still count it (minor GPS drift is ok)
+              // If accuracy is good, count all reasonable distances
+              if (isAccuracyGood || distanceMiles < 0.05) {
+                distanceRef.current += distanceMiles;
+                setDistance(distanceRef.current);
+
+                // Update last movement time if actually moving
+                if (speedMph >= 2) {
+                  lastMovementTimeRef.current = Date.now();
+                }
               }
             }
-          }
-        }
 
-        // Always update last position for next calculation
-        lastPositionRef.current = { lat: latitude, lon: longitude, timestamp };
+            // Always update last position to maintain continuity (KEY FIX)
+            // Previously we only updated when accuracy was good, causing gaps
+            lastPositionRef.current = { lat: latitude, lon: longitude, timestamp };
+          }
+        } else {
+          // Not tracking yet, but still update last position for when we start
+          lastPositionRef.current = { lat: latitude, lon: longitude, timestamp };
+        }
       },
       (error) => {
         console.error('Geolocation error:', error.message);
