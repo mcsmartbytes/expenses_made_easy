@@ -17,13 +17,13 @@ export default function Navigation({ variant = 'expenses' }: { variant?: string 
 
   const navLinks = [
     { href: '/expenses/dashboard', label: 'Dashboard' },
-    { href: '/expenses', label: 'Expenses' },
+    { href: '/expenses', label: 'Transactions' },
     { href: '/projects', label: 'Projects' },
     { href: '/budgets', label: 'Budgets' },
     { href: '/subscriptions', label: 'Subscriptions' },
     { href: '/price-tracker', label: 'Prices' },
     { href: '/receipts', label: 'Receipts' },
-    { href: '/mileage', label: 'Mileage' },
+    { href: '/mileage', label: 'Vehicle Deductions' },
     { href: '/reports', label: 'Reports' },
     { href: '/settings', label: 'Settings' },
   ];
@@ -41,7 +41,7 @@ export default function Navigation({ variant = 'expenses' }: { variant?: string 
               Expenses Made Easy
             </span>
             <span className="text-[11px] text-slate-300">
-              Expenses · Budgets · Receipts
+              Transactions · Budgets · Deductions
             </span>
           </div>
         </div>
