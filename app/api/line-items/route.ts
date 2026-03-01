@@ -1,21 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/utils/supabaseAdmin';
+import { getAuthenticatedUser } from '@/utils/apiAuth';
 import { normalizeItemName, normalizeVendor } from '@/lib/lineItems';
 
 // GET - Fetch line items for an expense or user
 export async function GET(request: NextRequest) {
+  const { user, error: authError } = await getAuthenticatedUser(request);
+  if (authError) return authError;
+
   try {
     const supabaseAdmin = getSupabaseAdmin();
     const { searchParams } = new URL(request.url);
     const expenseId = searchParams.get('expense_id');
-    const userId = searchParams.get('user_id');
-
-    if (!expenseId && !userId) {
-      return NextResponse.json(
-        { success: false, error: 'expense_id or user_id is required' },
-        { status: 400 }
-      );
-    }
 
     let query = supabaseAdmin
       .from('receipt_line_items')
@@ -24,8 +20,8 @@ export async function GET(request: NextRequest) {
 
     if (expenseId) {
       query = query.eq('expense_id', expenseId);
-    } else if (userId) {
-      query = query.eq('user_id', userId);
+    } else {
+      query = query.eq('user_id', user!.id);
     }
 
     const { data, error } = await query;
@@ -44,14 +40,17 @@ export async function GET(request: NextRequest) {
 
 // POST - Save line items for an expense
 export async function POST(request: NextRequest) {
+  const { user, error: authError } = await getAuthenticatedUser(request);
+  if (authError) return authError;
+
   try {
     const supabaseAdmin = getSupabaseAdmin();
     const body = await request.json();
-    const { expense_id, user_id, line_items, vendor, purchase_date } = body;
+    const { expense_id, line_items, vendor, purchase_date } = body;
 
-    if (!expense_id || !user_id || !line_items) {
+    if (!expense_id || !line_items) {
       return NextResponse.json(
-        { success: false, error: 'expense_id, user_id, and line_items are required' },
+        { success: false, error: 'expense_id and line_items are required' },
         { status: 400 }
       );
     }
@@ -65,7 +64,7 @@ export async function POST(request: NextRequest) {
     // Insert new line items
     const itemsToInsert = line_items.map((item: any, index: number) => ({
       expense_id,
-      user_id,
+      user_id: user!.id,
       item_name: item.name || item.item_name,
       item_name_normalized: normalizeItemName(item.name || item.item_name),
       quantity: parseFloat(item.quantity) || 1,
@@ -86,7 +85,7 @@ export async function POST(request: NextRequest) {
     // Also record in price history for tracking
     if (vendor && purchase_date) {
       const priceHistoryItems = (insertedItems || []).map((item: any) => ({
-        user_id,
+        user_id: user!.id,
         item_name_normalized: item.item_name_normalized,
         vendor,
         vendor_normalized: normalizeVendor(vendor),
@@ -115,6 +114,9 @@ export async function POST(request: NextRequest) {
 
 // PUT - Update a single line item
 export async function PUT(request: NextRequest) {
+  const { user, error: authError } = await getAuthenticatedUser(request);
+  if (authError) return authError;
+
   try {
     const supabaseAdmin = getSupabaseAdmin();
     const body = await request.json();
@@ -153,6 +155,9 @@ export async function PUT(request: NextRequest) {
 
 // DELETE - Remove a line item
 export async function DELETE(request: NextRequest) {
+  const { user, error: authError } = await getAuthenticatedUser(request);
+  if (authError) return authError;
+
   try {
     const supabaseAdmin = getSupabaseAdmin();
     const { searchParams } = new URL(request.url);

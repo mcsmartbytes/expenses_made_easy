@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/utils/supabaseAdmin';
+import { getAuthenticatedUser } from '@/utils/apiAuth';
 import {
   getDaysRemainingInMonth,
   getDaysElapsedInMonth,
@@ -13,17 +14,11 @@ import {
 
 // GET - generate forecast and predictive alerts for a user
 export async function GET(request: NextRequest) {
+  const { user, error: authError } = await getAuthenticatedUser(request);
+  if (authError) return authError;
+
   try {
     const supabaseAdmin = getSupabaseAdmin();
-    const { searchParams } = new URL(request.url);
-    const userId = searchParams.get('user_id');
-
-    if (!userId) {
-      return NextResponse.json(
-        { success: false, error: 'User ID is required' },
-        { status: 400 }
-      );
-    }
 
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -35,7 +30,7 @@ export async function GET(request: NextRequest) {
     const { data: currentExpenses, error: currentError } = await supabaseAdmin
       .from('expenses')
       .select('amount, date, category_id, categories(name)')
-      .eq('user_id', userId)
+      .eq('user_id', user!.id)
       .gte('date', startOfMonth.toISOString().split('T')[0]);
 
     if (currentError) throw currentError;
@@ -57,7 +52,7 @@ export async function GET(request: NextRequest) {
     const { data: historicalExpenses, error: histError } = await supabaseAdmin
       .from('expenses')
       .select('amount, date')
-      .eq('user_id', userId)
+      .eq('user_id', user!.id)
       .gte('date', threeMonthsAgo.toISOString().split('T')[0])
       .lt('date', startOfMonth.toISOString().split('T')[0]);
 
@@ -84,7 +79,7 @@ export async function GET(request: NextRequest) {
     const { data: lastMonthExpenses } = await supabaseAdmin
       .from('expenses')
       .select('amount')
-      .eq('user_id', userId)
+      .eq('user_id', user!.id)
       .gte('date', lastMonthStart.toISOString().split('T')[0])
       .lte('date', lastMonthEnd.toISOString().split('T')[0]);
 
@@ -97,7 +92,7 @@ export async function GET(request: NextRequest) {
     const { data: recurring, error: recurError } = await supabaseAdmin
       .from('recurring_expenses')
       .select('id, amount, description, frequency, next_due_date')
-      .eq('user_id', userId)
+      .eq('user_id', user!.id)
       .eq('is_active', true);
 
     if (recurError) throw recurError;
@@ -110,7 +105,7 @@ export async function GET(request: NextRequest) {
     const { data: budgets, error: budgetError } = await supabaseAdmin
       .from('budgets')
       .select('id, category, amount, period, profile, alert_threshold')
-      .eq('user_id', userId)
+      .eq('user_id', user!.id)
       .eq('is_active', true);
 
     if (budgetError) throw budgetError;

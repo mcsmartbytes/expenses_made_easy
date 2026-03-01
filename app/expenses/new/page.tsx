@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { supabase } from '@/utils/supabase';
+import { apiFetch } from '@/utils/apiFetch';
 import { canAddExpense } from '@/utils/subscription';
 import LineItemsEditor from '@/components/LineItemsEditor';
 import LearningPromptModal from '@/components/LearningPromptModal';
@@ -118,10 +119,10 @@ export default function NewExpensePage() {
     }
 
     try {
-      const res = await fetch('/api/merchant-rules/match', {
+      const res = await apiFetch('/api/merchant-rules/match', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ user_id: userId, vendor }),
+        body: JSON.stringify({ vendor }),
       });
       const data = await res.json();
 
@@ -233,7 +234,7 @@ export default function NewExpensePage() {
     setLoadingCategories(true);
     try {
       // Use API endpoint to bypass RLS
-      const response = await fetch('/api/categories');
+      const response = await apiFetch('/api/categories');
       const result = await response.json();
 
       if (result.success && result.data && result.data.length > 0) {
@@ -262,7 +263,7 @@ export default function NewExpensePage() {
         return;
       }
 
-      const response = await fetch('/api/categories', {
+      const response = await apiFetch('/api/categories', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -273,7 +274,6 @@ export default function NewExpensePage() {
             deduction_percentage: newCategory.deduction_percentage,
             is_tax_deductible: newCategory.deduction_percentage > 0,
           }],
-          user_id: user.id,
         }),
       });
 
@@ -318,7 +318,7 @@ export default function NewExpensePage() {
     ];
 
     try {
-      const response = await fetch('/api/categories', {
+      const response = await apiFetch('/api/categories', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ categories: defaultCategories }),
@@ -348,7 +348,7 @@ export default function NewExpensePage() {
       const formDataForOCR = new FormData();
       formDataForOCR.append('receipt', fileToSend);
 
-      const response = await fetch('/api/ocr-receipt', {
+      const response = await apiFetch('/api/ocr-receipt', {
         method: 'POST',
         body: formDataForOCR,
       });
@@ -441,12 +441,11 @@ export default function NewExpensePage() {
       // Save line items if any exist
       if (lineItems.length > 0 && expenseData) {
         try {
-          const res = await fetch('/api/line-items', {
+          const res = await apiFetch('/api/line-items', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               expense_id: expenseData.id,
-              user_id: user.id,
               line_items: lineItems,
               vendor: formData.vendor,
               purchase_date: formData.date,
@@ -468,11 +467,10 @@ export default function NewExpensePage() {
           ? parseFloat(formData.amount) * (selectedCategory.deduction_percentage / 100)
           : 0;
 
-        const gamificationRes = await fetch('/api/gamification', {
+        const gamificationRes = await apiFetch('/api/gamification', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            user_id: user.id,
             action: receiptFile ? 'scan_receipt' : 'log_expense',
             additionalData: {
               deductionAmount,

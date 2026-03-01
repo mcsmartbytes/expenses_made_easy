@@ -1,6 +1,8 @@
 // Learning Detection Library
 // Detects user corrections and builds learning suggestions
 
+import { apiFetch } from '@/utils/apiFetch';
+
 export type CorrectionType = 'vendor_category' | 'vendor_business' | 'item_category' | 'item_business';
 
 export interface CorrectionContext {
@@ -176,8 +178,8 @@ export async function checkExistingMerchantRule(
   pattern: string
 ): Promise<{ exists: boolean; ruleId?: string }> {
   try {
-    const res = await fetch(
-      `/api/merchant-rules/match?user_id=${userId}&pattern=${encodeURIComponent(pattern)}`
+    const res = await apiFetch(
+      `/api/merchant-rules/match?pattern=${encodeURIComponent(pattern)}`
     );
     const data = await res.json();
 
@@ -196,8 +198,8 @@ export async function checkExistingItemRule(
   pattern: string
 ): Promise<{ exists: boolean; ruleId?: string }> {
   try {
-    const res = await fetch(
-      `/api/item-rules/match?user_id=${userId}&pattern=${encodeURIComponent(pattern)}`
+    const res = await apiFetch(
+      `/api/item-rules/match?pattern=${encodeURIComponent(pattern)}`
     );
     const data = await res.json();
 
@@ -217,11 +219,10 @@ export async function createMerchantRule(
   vendor: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const res = await fetch('/api/merchant-rules', {
+    const res = await apiFetch('/api/merchant-rules', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        user_id: userId,
         merchant_pattern: suggestion.suggestedPattern,
         match_type: suggestion.suggestedMatchType,
         category_id: suggestion.newCategoryId,
@@ -245,11 +246,10 @@ export async function createItemRule(
   vendorPattern?: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const res = await fetch('/api/item-rules', {
+    const res = await apiFetch('/api/item-rules', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        user_id: userId,
         item_pattern: suggestion.suggestedPattern,
         match_type: suggestion.suggestedMatchType,
         category_id: suggestion.newCategoryId,

@@ -4,6 +4,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { loadStripe } from '@stripe/stripe-js';
 import Link from 'next/link';
 import { supabase } from '@/utils/supabase';
+import { apiFetch } from '@/utils/apiFetch';
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
 
@@ -37,13 +38,12 @@ function CheckoutContent() {
     setError('');
 
     try {
-      const response = await fetch('/api/create-checkout-session', {
+      const response = await apiFetch('/api/create-checkout-session', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           plan,
           interval,
-          userId: user.id,
           email: user.email,
         }),
       });

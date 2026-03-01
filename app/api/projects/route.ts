@@ -1,25 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/utils/supabaseAdmin';
+import { getAuthenticatedUser } from '@/utils/apiAuth';
 
 // GET - fetch all projects (jobs) for a user with expense totals
 export async function GET(request: NextRequest) {
+  const { user, error: authError } = await getAuthenticatedUser(request);
+  if (authError) return authError;
+
   try {
     const supabaseAdmin = getSupabaseAdmin();
-    const { searchParams } = new URL(request.url);
-    const userId = searchParams.get('user_id');
-
-    if (!userId) {
-      return NextResponse.json(
-        { success: false, error: 'User ID is required' },
-        { status: 400 }
-      );
-    }
 
     // Fetch jobs with expense counts and totals
     const { data: jobs, error: jobsError } = await supabaseAdmin
       .from('jobs')
       .select('*')
-      .eq('user_id', userId)
+      .eq('user_id', user!.id)
       .order('created_at', { ascending: false });
 
     if (jobsError) throw jobsError;
@@ -54,11 +49,13 @@ export async function GET(request: NextRequest) {
 
 // POST - create a new project (job)
 export async function POST(request: NextRequest) {
+  const { user, error: authError } = await getAuthenticatedUser(request);
+  if (authError) return authError;
+
   try {
     const supabaseAdmin = getSupabaseAdmin();
     const body = await request.json();
     const {
-      user_id,
       name,
       description,
       client_name,
@@ -68,9 +65,9 @@ export async function POST(request: NextRequest) {
       status,
     } = body;
 
-    if (!user_id || !name) {
+    if (!name) {
       return NextResponse.json(
-        { success: false, error: 'User ID and project name are required' },
+        { success: false, error: 'Project name is required' },
         { status: 400 }
       );
     }
@@ -78,7 +75,7 @@ export async function POST(request: NextRequest) {
     const { data, error } = await supabaseAdmin
       .from('jobs')
       .insert({
-        user_id,
+        user_id: user!.id,
         name: name.trim(),
         description: description || null,
         client_name: client_name || null,
@@ -103,6 +100,9 @@ export async function POST(request: NextRequest) {
 
 // PUT - update a project
 export async function PUT(request: NextRequest) {
+  const { user, error: authError } = await getAuthenticatedUser(request);
+  if (authError) return authError;
+
   try {
     const supabaseAdmin = getSupabaseAdmin();
     const body = await request.json();
@@ -143,6 +143,9 @@ export async function PUT(request: NextRequest) {
 
 // DELETE - delete a project
 export async function DELETE(request: NextRequest) {
+  const { user, error: authError } = await getAuthenticatedUser(request);
+  if (authError) return authError;
+
   try {
     const supabaseAdmin = getSupabaseAdmin();
     const { searchParams } = new URL(request.url);

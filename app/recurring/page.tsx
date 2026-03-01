@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import Navigation from '@/components/Navigation';
 import { supabase } from '@/utils/supabase';
+import { apiFetch } from '@/utils/apiFetch';
 
 interface Category {
   id: string;
@@ -79,7 +80,7 @@ export default function RecurringExpensesPage() {
 
   async function loadRecurringExpenses(uid: string) {
     try {
-      const response = await fetch(`/api/recurring-expenses?user_id=${uid}`);
+      const response = await apiFetch('/api/recurring-expenses');
       const result = await response.json();
       if (result.success) {
         setRecurringExpenses(result.data || []);
@@ -91,7 +92,7 @@ export default function RecurringExpensesPage() {
 
   async function loadCategories() {
     try {
-      const response = await fetch('/api/categories');
+      const response = await apiFetch('/api/categories');
       const result = await response.json();
       if (result.success) {
         setCategories(result.data || []);
@@ -151,7 +152,7 @@ export default function RecurringExpensesPage() {
     try {
       if (editingExpense) {
         // Update existing
-        const response = await fetch('/api/recurring-expenses', {
+        const response = await apiFetch('/api/recurring-expenses', {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -164,11 +165,10 @@ export default function RecurringExpensesPage() {
         if (!result.success) throw new Error(result.error);
       } else {
         // Create new
-        const response = await fetch('/api/recurring-expenses', {
+        const response = await apiFetch('/api/recurring-expenses', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            user_id: userId,
             ...formData,
           }),
         });
@@ -187,7 +187,7 @@ export default function RecurringExpensesPage() {
 
   async function toggleActive(expense: RecurringExpense) {
     try {
-      const response = await fetch('/api/recurring-expenses', {
+      const response = await apiFetch('/api/recurring-expenses', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -208,7 +208,7 @@ export default function RecurringExpensesPage() {
     if (!confirm('Delete this recurring expense? This will not delete any expenses already generated.')) return;
 
     try {
-      const response = await fetch(`/api/recurring-expenses?id=${id}`, {
+      const response = await apiFetch(`/api/recurring-expenses?id=${id}`, {
         method: 'DELETE',
       });
       const result = await response.json();

@@ -1,17 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
+import { getAuthenticatedUser } from '@/utils/apiAuth';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2023-10-16',
 });
 
 export async function POST(req: NextRequest) {
-  try {
-    const { plan, interval, userId, email } = await req.json();
+  const { user, error: authError } = await getAuthenticatedUser(req);
+  if (authError) return authError;
 
-    if (!userId) {
-      return NextResponse.json({ error: 'User not authenticated' }, { status: 401 });
-    }
+  try {
+    const { plan, interval, email } = await req.json();
 
     const priceIds: Record<string, string> = {
       'premium-month': process.env.STRIPE_PREMIUM_MONTHLY_PRICE_ID!,
@@ -34,13 +34,13 @@ export async function POST(req: NextRequest) {
       cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/checkout?plan=${plan}`,
       customer_email: email,
       metadata: {
-        user_id: userId,
+        user_id: user!.id,
         plan: plan,
       },
       subscription_data: {
         trial_period_days: 14,
         metadata: {
-          user_id: userId,
+          user_id: user!.id,
         },
       },
     });

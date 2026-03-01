@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/utils/supabaseAdmin';
+import { getAuthenticatedUser } from '@/utils/apiAuth';
 import { estimateToPdfBytes } from '@/lib/estimatePdf';
 
 type EstimateRecord = {
@@ -62,6 +63,9 @@ async function sendViaSendgrid(to: string, subject: string, html: string, pdfBas
 
 export async function POST(req: NextRequest) {
   try {
+    const { user, error: authError } = await getAuthenticatedUser(req);
+    if (authError) return authError;
+
     const supabaseAdmin = getSupabaseAdmin();
     const { estimate_id, to_email, message } = await req.json();
     if (!estimate_id || !to_email) {

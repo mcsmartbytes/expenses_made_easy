@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server';
 import { getSupabaseAdmin } from '@/utils/supabaseAdmin';
+import { getAuthenticatedUser } from '@/utils/apiAuth';
 import { estimateToPdfBytes } from '@/lib/estimatePdf';
 
 type EstimateRecord = {
@@ -20,8 +21,11 @@ type EstimateItemRecord = {
   is_optional: boolean;
 };
 
-export async function GET(_req: NextRequest, context: { params: Promise<{ id: string }> }) {
+export async function GET(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
+    const { user, error: authError } = await getAuthenticatedUser(request);
+    if (authError) return authError;
+
     const supabaseAdmin = getSupabaseAdmin();
     const { id } = await context.params;
     const { data: estRaw, error: estErr } = await supabaseAdmin

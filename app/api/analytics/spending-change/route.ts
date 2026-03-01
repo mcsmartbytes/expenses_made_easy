@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/utils/supabaseAdmin';
+import { getAuthenticatedUser } from '@/utils/apiAuth';
 import {
   getDateRange,
   getPreviousPeriodRange,
@@ -9,18 +10,13 @@ import {
 
 // GET - analyze spending changes for a user
 export async function GET(request: NextRequest) {
+  const { user, error: authError } = await getAuthenticatedUser(request);
+  if (authError) return authError;
+
   try {
     const supabaseAdmin = getSupabaseAdmin();
     const { searchParams } = new URL(request.url);
-    const userId = searchParams.get('user_id');
     const period = (searchParams.get('period') || 'month') as 'week' | 'month' | 'quarter' | 'year';
-
-    if (!userId) {
-      return NextResponse.json(
-        { success: false, error: 'User ID is required' },
-        { status: 400 }
-      );
-    }
 
     // Get date ranges
     const currentRange = getDateRange(period);
@@ -30,7 +26,7 @@ export async function GET(request: NextRequest) {
     const { data: currentExpenses, error: currentError } = await supabaseAdmin
       .from('expenses')
       .select('amount, category_id, categories(id, name, icon)')
-      .eq('user_id', userId)
+      .eq('user_id', user!.id)
       .gte('date', currentRange.start.toISOString().split('T')[0])
       .lte('date', currentRange.end.toISOString().split('T')[0]);
 
@@ -40,7 +36,7 @@ export async function GET(request: NextRequest) {
     const { data: previousExpenses, error: previousError } = await supabaseAdmin
       .from('expenses')
       .select('amount, category_id, categories(id, name, icon)')
-      .eq('user_id', userId)
+      .eq('user_id', user!.id)
       .gte('date', previousRange.start.toISOString().split('T')[0])
       .lte('date', previousRange.end.toISOString().split('T')[0]);
 

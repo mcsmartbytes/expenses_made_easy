@@ -234,7 +234,7 @@ export default function PriceTrackerPage() {
         <Navigation variant="expenses" />
         <div className="flex flex-col items-center justify-center py-24 gap-4">
           <p className="text-red-300">{error}</p>
-          <Link href="/auth/signin" className="px-4 py-2 bg-blue-600 text-white rounded-lg">
+          <Link href="/auth/login" className="px-4 py-2 bg-blue-600 text-white rounded-lg">
             Sign In
           </Link>
         </div>

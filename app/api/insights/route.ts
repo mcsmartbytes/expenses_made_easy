@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/utils/supabaseAdmin';
+import { getAuthenticatedUser } from '@/utils/apiAuth';
 
 interface Insight {
   id: string;
@@ -14,14 +15,10 @@ interface Insight {
   data?: Record<string, any>;
 }
 
-// GET /api/insights?user_id=xxx
+// GET /api/insights
 export async function GET(request: NextRequest) {
-  const searchParams = request.nextUrl.searchParams;
-  const userId = searchParams.get('user_id');
-
-  if (!userId) {
-    return NextResponse.json({ error: 'user_id is required' }, { status: 400 });
-  }
+  const { user, error: authError } = await getAuthenticatedUser(request);
+  if (authError) return authError;
 
   try {
     const supabaseAdmin = getSupabaseAdmin();
@@ -37,13 +34,13 @@ export async function GET(request: NextRequest) {
     const { data: currentExpenses } = await supabaseAdmin
       .from('expenses')
       .select('amount, category_id, is_business, date, categories(name, deduction_percentage)')
-      .eq('user_id', userId)
+      .eq('user_id', user!.id)
       .gte('date', currentMonthStart.toISOString().split('T')[0]);
 
     const { data: previousExpenses } = await supabaseAdmin
       .from('expenses')
       .select('amount, category_id, is_business, date, categories(name, deduction_percentage)')
-      .eq('user_id', userId)
+      .eq('user_id', user!.id)
       .gte('date', previousMonthStart.toISOString().split('T')[0])
       .lte('date', previousMonthEnd.toISOString().split('T')[0]);
 
@@ -51,13 +48,13 @@ export async function GET(request: NextRequest) {
     const { data: budgets } = await supabaseAdmin
       .from('budgets')
       .select('*')
-      .eq('user_id', userId);
+      .eq('user_id', user!.id);
 
     // Fetch mileage (current month)
     const { data: mileageData } = await supabaseAdmin
       .from('mileage')
       .select('distance, is_business, date')
-      .eq('user_id', userId)
+      .eq('user_id', user!.id)
       .gte('date', currentMonthStart.toISOString().split('T')[0]);
 
     // Fetch year-to-date mileage
@@ -65,7 +62,7 @@ export async function GET(request: NextRequest) {
     const { data: ytdMileageData } = await supabaseAdmin
       .from('mileage')
       .select('distance, is_business, amount')
-      .eq('user_id', userId)
+      .eq('user_id', user!.id)
       .eq('is_business', true)
       .gte('date', yearStart);
 

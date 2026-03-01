@@ -1,19 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/utils/supabaseAdmin';
+import { getAuthenticatedUser } from '@/utils/apiAuth';
 
 // POST - generate due recurring expenses
 export async function POST(request: NextRequest) {
+  const { user, error: authError } = await getAuthenticatedUser(request);
+  if (authError) return authError;
+
   try {
     const supabaseAdmin = getSupabaseAdmin();
-    const body = await request.json();
-    const { user_id } = body;
-
-    if (!user_id) {
-      return NextResponse.json(
-        { success: false, error: 'User ID is required' },
-        { status: 400 }
-      );
-    }
 
     const today = new Date().toISOString().split('T')[0];
 
@@ -21,7 +16,7 @@ export async function POST(request: NextRequest) {
     const { data: dueExpenses, error: fetchError } = await supabaseAdmin
       .from('recurring_expenses')
       .select('*')
-      .eq('user_id', user_id)
+      .eq('user_id', user!.id)
       .eq('is_active', true)
       .lte('next_due_date', today);
 

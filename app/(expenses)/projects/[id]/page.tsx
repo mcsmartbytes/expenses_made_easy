@@ -4,6 +4,7 @@ import { useState, useEffect, use } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import Navigation from '@/components/Navigation';
+import { apiFetch } from '@/utils/apiFetch';
 
 interface CategoryBreakdown {
   name: string;
@@ -54,7 +55,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
 
   async function loadProject() {
     try {
-      const res = await fetch(`/api/projects/${resolvedParams.id}`);
+      const res = await apiFetch(`/api/projects/${resolvedParams.id}`);
       const data = await res.json();
 
       if (data.success) {
@@ -74,7 +75,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
 
     setDeleting(true);
     try {
-      const res = await fetch(`/api/projects?id=${resolvedParams.id}`, { method: 'DELETE' });
+      const res = await apiFetch(`/api/projects?id=${resolvedParams.id}`, { method: 'DELETE' });
       const data = await res.json();
 
       if (data.success) {
@@ -91,7 +92,7 @@ export default function ProjectDetailPage({ params }: { params: Promise<{ id: st
 
   async function handleStatusChange(newStatus: string) {
     try {
-      const res = await fetch('/api/projects', {
+      const res = await apiFetch('/api/projects', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: resolvedParams.id, status: newStatus }),

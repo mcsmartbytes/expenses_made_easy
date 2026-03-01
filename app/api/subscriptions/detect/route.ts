@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/utils/supabaseAdmin';
+import { getAuthenticatedUser } from '@/utils/apiAuth';
 import {
   detectSubscriptions,
   detectPriceChanges,
@@ -10,17 +11,13 @@ import {
 
 // POST - Run subscription detection on user's expenses
 export async function POST(request: NextRequest) {
+  const { user, error: authError } = await getAuthenticatedUser(request);
+  if (authError) return authError;
+
   try {
     const supabaseAdmin = getSupabaseAdmin();
     const body = await request.json();
-    const { user_id, lookback_months = 12 } = body;
-
-    if (!user_id) {
-      return NextResponse.json(
-        { success: false, error: 'User ID is required' },
-        { status: 400 }
-      );
-    }
+    const { lookback_months = 12 } = body;
 
     // Calculate lookback date
     const lookbackDate = new Date();
@@ -38,7 +35,7 @@ export async function POST(request: NextRequest) {
         category_id,
         categories(name)
       `)
-      .eq('user_id', user_id)
+      .eq('user_id', user!.id)
       .not('vendor', 'is', null)
       .gte('date', lookbackStr)
       .order('date', { ascending: true });
@@ -74,7 +71,7 @@ export async function POST(request: NextRequest) {
     const { data: existingSubs } = await supabaseAdmin
       .from('detected_subscriptions')
       .select('vendor_normalized, is_confirmed, is_dismissed')
-      .eq('user_id', user_id);
+      .eq('user_id', user!.id);
 
     const existingMap = new Map(
       (existingSubs || []).map(s => [s.vendor_normalized, s])
@@ -93,7 +90,7 @@ export async function POST(request: NextRequest) {
         .from('detected_subscriptions')
         .upsert(
           {
-            user_id,
+            user_id: user!.id,
             vendor: sub.vendor,
             vendor_normalized: sub.vendor_normalized,
             avg_amount: sub.avg_amount,
@@ -131,7 +128,7 @@ export async function POST(request: NextRequest) {
           await supabaseAdmin.from('subscription_price_history').upsert(
             {
               subscription_id: upserted.id,
-              user_id,
+              user_id: user!.id,
               amount: change.new_amount,
               detected_date: change.detected_date,
               expense_id: expenseMatch || null,
@@ -176,18 +173,13 @@ export async function POST(request: NextRequest) {
 
 // GET - Get detection summary without saving
 export async function GET(request: NextRequest) {
+  const { user, error: authError } = await getAuthenticatedUser(request);
+  if (authError) return authError;
+
   try {
     const supabaseAdmin = getSupabaseAdmin();
     const { searchParams } = new URL(request.url);
-    const userId = searchParams.get('user_id');
     const lookbackMonths = parseInt(searchParams.get('lookback_months') || '12');
-
-    if (!userId) {
-      return NextResponse.json(
-        { success: false, error: 'User ID is required' },
-        { status: 400 }
-      );
-    }
 
     // Calculate lookback date
     const lookbackDate = new Date();
@@ -198,7 +190,7 @@ export async function GET(request: NextRequest) {
     const { data: expenses, error } = await supabaseAdmin
       .from('expenses')
       .select('id, vendor, amount, date, category_id, categories(name)')
-      .eq('user_id', userId)
+      .eq('user_id', user!.id)
       .not('vendor', 'is', null)
       .gte('date', lookbackStr)
       .order('date', { ascending: true });

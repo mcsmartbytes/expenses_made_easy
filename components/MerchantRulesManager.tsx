@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { supabase } from '@/utils/supabase';
+import { apiFetch } from '@/utils/apiFetch';
 
 interface Category {
   id: string;
@@ -53,7 +54,7 @@ export default function MerchantRulesManager() {
       if (!user) return;
 
       // Load rules
-      const rulesRes = await fetch(`/api/merchant-rules?user_id=${user.id}`);
+      const rulesRes = await apiFetch('/api/merchant-rules');
       const rulesData = await rulesRes.json();
       if (rulesData.success) {
         setRules(rulesData.data || []);
@@ -115,20 +116,19 @@ export default function MerchantRulesManager() {
 
       const payload = {
         ...formData,
-        user_id: user.id,
         category_id: formData.category_id || null,
         vendor_display_name: formData.vendor_display_name || null,
       };
 
       let res;
       if (editingRule) {
-        res = await fetch('/api/merchant-rules', {
+        res = await apiFetch('/api/merchant-rules', {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ id: editingRule.id, ...payload }),
         });
       } else {
-        res = await fetch('/api/merchant-rules', {
+        res = await apiFetch('/api/merchant-rules', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
@@ -154,7 +154,7 @@ export default function MerchantRulesManager() {
     if (!confirm('Are you sure you want to delete this rule?')) return;
 
     try {
-      const res = await fetch(`/api/merchant-rules?id=${ruleId}`, { method: 'DELETE' });
+      const res = await apiFetch(`/api/merchant-rules?id=${ruleId}`, { method: 'DELETE' });
       const data = await res.json();
       if (data.success) {
         setRules(rules.filter(r => r.id !== ruleId));
@@ -167,7 +167,7 @@ export default function MerchantRulesManager() {
 
   async function handleToggleActive(rule: MerchantRule) {
     try {
-      const res = await fetch('/api/merchant-rules', {
+      const res = await apiFetch('/api/merchant-rules', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: rule.id, is_active: !rule.is_active }),

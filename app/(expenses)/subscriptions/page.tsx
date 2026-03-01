@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Navigation from '@/components/Navigation';
-import { supabase } from '@/utils/supabase';
+import { apiFetch } from '@/utils/apiFetch';
 
 interface Subscription {
   id: string;
@@ -52,15 +52,14 @@ export default function SubscriptionsPage() {
     setLoading(true);
     setError(null);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
+      const res = await apiFetch('/api/subscriptions?include_price_history=true');
+      const data = await res.json();
+
+      if (res.status === 401) {
         setError('Please sign in to view subscriptions.');
         setLoading(false);
         return;
       }
-
-      const res = await fetch(`/api/subscriptions?user_id=${user.id}&include_price_history=true`);
-      const data = await res.json();
 
       if (data.success) {
         setSubscriptions(data.data || []);
@@ -77,13 +76,10 @@ export default function SubscriptionsPage() {
   async function runDetection() {
     setDetecting(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      const res = await fetch('/api/subscriptions/detect', {
+      const res = await apiFetch('/api/subscriptions/detect', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ user_id: user.id, lookback_months: 12 }),
+        body: JSON.stringify({ lookback_months: 12 }),
       });
 
       const data = await res.json();
@@ -103,7 +99,7 @@ export default function SubscriptionsPage() {
 
   async function confirmSubscription(id: string) {
     try {
-      await fetch('/api/subscriptions', {
+      await apiFetch('/api/subscriptions', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id, is_confirmed: true }),
@@ -118,7 +114,7 @@ export default function SubscriptionsPage() {
 
   async function dismissSubscription(id: string) {
     try {
-      await fetch('/api/subscriptions', {
+      await apiFetch('/api/subscriptions', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id, is_dismissed: true }),
@@ -204,7 +200,7 @@ export default function SubscriptionsPage() {
         <Navigation variant="expenses" />
         <div className="flex flex-col items-center justify-center py-24 gap-4">
           <p className="text-red-300">{error}</p>
-          <Link href="/auth/signin" className="px-4 py-2 bg-blue-600 text-white rounded-lg">
+          <Link href="/auth/login" className="px-4 py-2 bg-blue-600 text-white rounded-lg">
             Sign In
           </Link>
         </div>

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/utils/supabaseAdmin';
+import { getAuthenticatedUser } from '@/utils/apiAuth';
 import {
   calculatePriceTrend,
   findBiggestIncreases,
@@ -17,26 +18,21 @@ import {
 // GET - Fetch price history and trends
 export async function GET(request: NextRequest) {
   try {
+    const { user, error: authError } = await getAuthenticatedUser(request);
+    if (authError) return authError;
+
     const supabaseAdmin = getSupabaseAdmin();
     const { searchParams } = new URL(request.url);
-    const userId = searchParams.get('user_id');
     const itemName = searchParams.get('item_name');
     const vendor = searchParams.get('vendor');
     const mode = searchParams.get('mode') || 'history'; // 'history', 'trends', 'alerts'
     const limit = parseInt(searchParams.get('limit') || '100');
 
-    if (!userId) {
-      return NextResponse.json(
-        { success: false, error: 'User ID is required' },
-        { status: 400 }
-      );
-    }
-
     // Build query
     let query = supabaseAdmin
       .from('item_price_history')
       .select('*')
-      .eq('user_id', userId)
+      .eq('user_id', user!.id)
       .order('purchase_date', { ascending: false })
       .limit(limit);
 
@@ -97,7 +93,7 @@ export async function GET(request: NextRequest) {
       const { data: recentHistory } = await supabaseAdmin
         .from('item_price_history')
         .select('*')
-        .eq('user_id', userId)
+        .eq('user_id', user!.id)
         .gte('purchase_date', thirtyDaysAgo.toISOString().split('T')[0])
         .order('purchase_date', { ascending: false });
 
@@ -152,7 +148,7 @@ export async function GET(request: NextRequest) {
       const { data: allHistory, error: historyError } = await supabaseAdmin
         .from('item_price_history')
         .select('*')
-        .eq('user_id', userId)
+        .eq('user_id', user!.id)
         .order('purchase_date', { ascending: false });
 
       if (historyError) throw historyError;
@@ -223,13 +219,16 @@ export async function GET(request: NextRequest) {
 // POST - Add price history entry (usually done automatically via line-items)
 export async function POST(request: NextRequest) {
   try {
+    const { user, error: authError } = await getAuthenticatedUser(request);
+    if (authError) return authError;
+
     const supabaseAdmin = getSupabaseAdmin();
     const body = await request.json();
-    const { user_id, item_name, vendor, unit_price, quantity, unit_of_measure, purchase_date, expense_id, line_item_id } = body;
+    const { item_name, vendor, unit_price, quantity, unit_of_measure, purchase_date, expense_id, line_item_id } = body;
 
-    if (!user_id || !item_name || !unit_price || !purchase_date) {
+    if (!item_name || !unit_price || !purchase_date) {
       return NextResponse.json(
-        { success: false, error: 'user_id, item_name, unit_price, and purchase_date are required' },
+        { success: false, error: 'item_name, unit_price, and purchase_date are required' },
         { status: 400 }
       );
     }
@@ -237,7 +236,7 @@ export async function POST(request: NextRequest) {
     const { data, error } = await supabaseAdmin
       .from('item_price_history')
       .insert({
-        user_id,
+        user_id: user!.id,
         item_name_normalized: item_name.toLowerCase().trim(),
         vendor,
         vendor_normalized: vendor ? vendor.toLowerCase().trim().replace(/[^a-z0-9\s]/g, '') : null,
@@ -266,6 +265,9 @@ export async function POST(request: NextRequest) {
 // DELETE - Remove price history entry
 export async function DELETE(request: NextRequest) {
   try {
+    const { error: authError } = await getAuthenticatedUser(request);
+    if (authError) return authError;
+
     const supabaseAdmin = getSupabaseAdmin();
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');

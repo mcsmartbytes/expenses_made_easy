@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/utils/supabaseAdmin';
+import { getAuthenticatedUser } from '@/utils/apiAuth';
 import {
   YearEndSummary,
   QuarterlySummary,
@@ -13,19 +14,14 @@ import {
 
 // GET - generate year-end summary
 export async function GET(request: NextRequest) {
+  const { user, error: authError } = await getAuthenticatedUser(request);
+  if (authError) return authError;
+
   try {
     const supabaseAdmin = getSupabaseAdmin();
     const { searchParams } = new URL(request.url);
-    const userId = searchParams.get('user_id');
     const year = parseInt(searchParams.get('year') || String(new Date().getFullYear()));
     const format = searchParams.get('format') || 'json'; // 'json' or 'csv'
-
-    if (!userId) {
-      return NextResponse.json(
-        { success: false, error: 'User ID is required' },
-        { status: 400 }
-      );
-    }
 
     const startDate = `${year}-01-01`;
     const endDate = `${year}-12-31`;
@@ -37,7 +33,7 @@ export async function GET(request: NextRequest) {
         id, date, amount, is_business, vendor,
         categories(name, icon, deduction_percentage, schedule_c_line)
       `)
-      .eq('user_id', userId)
+      .eq('user_id', user!.id)
       .gte('date', startDate)
       .lte('date', endDate)
       .order('date', { ascending: true });
@@ -48,7 +44,7 @@ export async function GET(request: NextRequest) {
     const { data: mileage, error: mileError } = await supabaseAdmin
       .from('mileage')
       .select('id, date, distance, rate, amount')
-      .eq('user_id', userId)
+      .eq('user_id', user!.id)
       .eq('is_business', true)
       .gte('date', startDate)
       .lte('date', endDate);

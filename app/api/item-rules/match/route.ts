@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/utils/supabaseAdmin';
+import { getAuthenticatedUser } from '@/utils/apiAuth';
 
 // Pattern matching logic for item names
 function matchesPattern(
@@ -24,13 +25,16 @@ function matchesPattern(
 // POST - find matching rule for an item
 export async function POST(request: NextRequest) {
   try {
+    const { user, error: authError } = await getAuthenticatedUser(request);
+    if (authError) return authError;
+
     const supabaseAdmin = getSupabaseAdmin();
     const body = await request.json();
-    const { user_id, item_name, vendor } = body;
+    const { item_name, vendor } = body;
 
-    if (!user_id || !item_name) {
+    if (!item_name) {
       return NextResponse.json(
-        { success: false, error: 'User ID and item name are required' },
+        { success: false, error: 'Item name is required' },
         { status: 400 }
       );
     }
@@ -39,7 +43,7 @@ export async function POST(request: NextRequest) {
     const { data: rules, error } = await supabaseAdmin
       .from('item_category_rules')
       .select('*, categories(id, name, icon, color)')
-      .eq('user_id', user_id)
+      .eq('user_id', user!.id)
       .eq('is_active', true)
       .order('priority', { ascending: false })
       .order('match_count', { ascending: false });
@@ -104,13 +108,16 @@ export async function POST(request: NextRequest) {
 // POST batch - find matching rules for multiple items
 export async function PUT(request: NextRequest) {
   try {
+    const { user, error: authError } = await getAuthenticatedUser(request);
+    if (authError) return authError;
+
     const supabaseAdmin = getSupabaseAdmin();
     const body = await request.json();
-    const { user_id, items, vendor } = body;
+    const { items, vendor } = body;
 
-    if (!user_id || !items || !Array.isArray(items)) {
+    if (!items || !Array.isArray(items)) {
       return NextResponse.json(
-        { success: false, error: 'User ID and items array are required' },
+        { success: false, error: 'Items array is required' },
         { status: 400 }
       );
     }
@@ -119,7 +126,7 @@ export async function PUT(request: NextRequest) {
     const { data: rules, error } = await supabaseAdmin
       .from('item_category_rules')
       .select('*, categories(id, name, icon, color)')
-      .eq('user_id', user_id)
+      .eq('user_id', user!.id)
       .eq('is_active', true)
       .order('priority', { ascending: false })
       .order('match_count', { ascending: false });
@@ -175,14 +182,16 @@ export async function PUT(request: NextRequest) {
 // GET - check if rule exists for pattern
 export async function GET(request: NextRequest) {
   try {
+    const { user, error: authError } = await getAuthenticatedUser(request);
+    if (authError) return authError;
+
     const supabaseAdmin = getSupabaseAdmin();
     const { searchParams } = new URL(request.url);
-    const userId = searchParams.get('user_id');
     const pattern = searchParams.get('pattern');
 
-    if (!userId || !pattern) {
+    if (!pattern) {
       return NextResponse.json(
-        { success: false, error: 'User ID and pattern are required' },
+        { success: false, error: 'Pattern is required' },
         { status: 400 }
       );
     }
@@ -190,7 +199,7 @@ export async function GET(request: NextRequest) {
     const { data, error } = await supabaseAdmin
       .from('item_category_rules')
       .select('id')
-      .eq('user_id', userId)
+      .eq('user_id', user!.id)
       .ilike('item_pattern', pattern)
       .limit(1);
 

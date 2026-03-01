@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getAuthenticatedUser } from '@/utils/apiAuth';
 
 export async function POST(request: NextRequest) {
+  const { user, error: authError } = await getAuthenticatedUser(request);
+  if (authError) return authError;
+
   try {
     const formData = await request.formData();
     const file = formData.get('receipt') as File;

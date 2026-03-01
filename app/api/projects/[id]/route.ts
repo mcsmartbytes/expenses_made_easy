@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/utils/supabaseAdmin';
+import { getAuthenticatedUser } from '@/utils/apiAuth';
 
 // GET - fetch a single project with its expenses
 export async function GET(
@@ -7,6 +8,9 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { user, error: authError } = await getAuthenticatedUser(request);
+    if (authError) return authError;
+
     const supabaseAdmin = getSupabaseAdmin();
     const { id } = await params;
 

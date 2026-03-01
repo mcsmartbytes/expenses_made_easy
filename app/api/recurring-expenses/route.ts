@@ -1,24 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/utils/supabaseAdmin';
+import { getAuthenticatedUser } from '@/utils/apiAuth';
 
 // GET - fetch all recurring expenses for a user
 export async function GET(request: NextRequest) {
+  const { user, error: authError } = await getAuthenticatedUser(request);
+  if (authError) return authError;
+
   try {
     const supabaseAdmin = getSupabaseAdmin();
-    const { searchParams } = new URL(request.url);
-    const userId = searchParams.get('user_id');
-
-    if (!userId) {
-      return NextResponse.json(
-        { success: false, error: 'User ID is required' },
-        { status: 400 }
-      );
-    }
 
     const { data, error } = await supabaseAdmin
       .from('recurring_expenses')
       .select('*, categories(name, icon, color)')
-      .eq('user_id', userId)
+      .eq('user_id', user!.id)
       .order('next_due_date', { ascending: true });
 
     if (error) throw error;
@@ -34,11 +29,13 @@ export async function GET(request: NextRequest) {
 
 // POST - create a new recurring expense
 export async function POST(request: NextRequest) {
+  const { user, error: authError } = await getAuthenticatedUser(request);
+  if (authError) return authError;
+
   try {
     const supabaseAdmin = getSupabaseAdmin();
     const body = await request.json();
     const {
-      user_id,
       amount,
       description,
       category_id,
@@ -50,7 +47,7 @@ export async function POST(request: NextRequest) {
       start_date,
     } = body;
 
-    if (!user_id || !amount || !description || !frequency || !start_date) {
+    if (!amount || !description || !frequency || !start_date) {
       return NextResponse.json(
         { success: false, error: 'Missing required fields' },
         { status: 400 }
@@ -63,7 +60,7 @@ export async function POST(request: NextRequest) {
     const { data, error } = await supabaseAdmin
       .from('recurring_expenses')
       .insert({
-        user_id,
+        user_id: user!.id,
         amount: parseFloat(amount),
         description,
         category_id: category_id || null,
@@ -92,6 +89,9 @@ export async function POST(request: NextRequest) {
 
 // PUT - update a recurring expense
 export async function PUT(request: NextRequest) {
+  const { user, error: authError } = await getAuthenticatedUser(request);
+  if (authError) return authError;
+
   try {
     const supabaseAdmin = getSupabaseAdmin();
     const body = await request.json();
@@ -129,6 +129,9 @@ export async function PUT(request: NextRequest) {
 
 // DELETE - delete a recurring expense
 export async function DELETE(request: NextRequest) {
+  const { user, error: authError } = await getAuthenticatedUser(request);
+  if (authError) return authError;
+
   try {
     const supabaseAdmin = getSupabaseAdmin();
     const { searchParams } = new URL(request.url);

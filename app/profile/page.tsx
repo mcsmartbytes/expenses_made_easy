@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { supabase } from '@/utils/supabase';
+import { apiFetch } from '@/utils/apiFetch';
 import { INDUSTRY_CATEGORIES, IndustryKey } from '@/utils/industryCategories';
 import AchievementsGallery from '@/components/AchievementsGallery';
 
@@ -102,7 +103,7 @@ export default function ProfilePage() {
 
   async function loadCategories() {
     try {
-      const response = await fetch('/api/categories');
+      const response = await apiFetch('/api/categories');
       const result = await response.json();
       if (result.success && result.data) {
         setCategories(result.data);
@@ -170,7 +171,7 @@ export default function ProfilePage() {
         return;
       }
 
-      const response = await fetch('/api/categories', {
+      const response = await apiFetch('/api/categories', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ categories: industryCategories }),
@@ -193,7 +194,7 @@ export default function ProfilePage() {
     setMessage(null);
 
     try {
-      const response = await fetch('/api/categories', {
+      const response = await apiFetch('/api/categories', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ categories: [newCategory] }),
@@ -213,7 +214,7 @@ export default function ProfilePage() {
 
   async function handleUpdateCategory(category: Category) {
     try {
-      const response = await fetch('/api/categories', {
+      const response = await apiFetch('/api/categories', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -239,7 +240,7 @@ export default function ProfilePage() {
     if (!confirm('Delete this category? Expenses using it will not be deleted.')) return;
 
     try {
-      const response = await fetch(`/api/categories?id=${id}`, {
+      const response = await apiFetch(`/api/categories?id=${id}`, {
         method: 'DELETE',
       });
 

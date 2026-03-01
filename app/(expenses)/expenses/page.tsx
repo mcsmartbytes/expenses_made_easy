@@ -5,6 +5,7 @@ import Link from 'next/link';
 import Navigation from '@/components/Navigation';
 import LearningPromptModal from '@/components/LearningPromptModal';
 import { supabase } from '@/utils/supabase';
+import { apiFetch } from '@/utils/apiFetch';
 import {
   detectCorrection,
   buildLearningSuggestion,
@@ -101,7 +102,7 @@ export default function ExpensesPage() {
 
   async function loadCategories() {
     try {
-      const response = await fetch('/api/categories');
+      const response = await apiFetch('/api/categories');
       const result = await response.json();
       if (result.success && result.data) {
         setCategories(result.data);
@@ -119,13 +120,7 @@ export default function ExpensesPage() {
 
     setCreatingCategory(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        alert('Please sign in');
-        return;
-      }
-
-      const response = await fetch('/api/categories', {
+      const response = await apiFetch('/api/categories', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -136,7 +131,6 @@ export default function ExpensesPage() {
             deduction_percentage: newCategory.deduction_percentage,
             is_tax_deductible: newCategory.deduction_percentage > 0,
           }],
-          user_id: user.id,
         }),
       });
 

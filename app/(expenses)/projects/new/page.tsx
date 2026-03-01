@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Navigation from '@/components/Navigation';
-import { supabase } from '@/utils/supabase';
+import { apiFetch } from '@/utils/apiFetch';
 
 export default function NewProjectPage() {
   const router = useRouter();
@@ -29,18 +29,11 @@ export default function NewProjectPage() {
 
     setLoading(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        alert('Please sign in');
-        return;
-      }
-
-      const res = await fetch('/api/projects', {
+      const res = await apiFetch('/api/projects', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...formData,
-          user_id: user.id,
           budget: formData.budget ? parseFloat(formData.budget) : null,
         }),
       });

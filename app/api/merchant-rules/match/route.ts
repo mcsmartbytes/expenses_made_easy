@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/utils/supabaseAdmin';
+import { getAuthenticatedUser } from '@/utils/apiAuth';
 
 // Pattern matching logic (server-side)
 function matchesPattern(
@@ -24,13 +25,16 @@ function matchesPattern(
 // POST - find matching rule for a vendor
 export async function POST(request: NextRequest) {
   try {
+    const { user, error: authError } = await getAuthenticatedUser(request);
+    if (authError) return authError;
+
     const supabaseAdmin = getSupabaseAdmin();
     const body = await request.json();
-    const { user_id, vendor } = body;
+    const { vendor } = body;
 
-    if (!user_id || !vendor) {
+    if (!vendor) {
       return NextResponse.json(
-        { success: false, error: 'User ID and vendor are required' },
+        { success: false, error: 'Vendor is required' },
         { status: 400 }
       );
     }
@@ -39,7 +43,7 @@ export async function POST(request: NextRequest) {
     const { data: rules, error } = await supabaseAdmin
       .from('merchant_rules')
       .select('*, categories(id, name, icon, color)')
-      .eq('user_id', user_id)
+      .eq('user_id', user!.id)
       .eq('is_active', true)
       .order('priority', { ascending: false })
       .order('match_count', { ascending: false });
@@ -95,14 +99,16 @@ export async function POST(request: NextRequest) {
 // GET - check if rule exists for pattern
 export async function GET(request: NextRequest) {
   try {
+    const { user, error: authError } = await getAuthenticatedUser(request);
+    if (authError) return authError;
+
     const supabaseAdmin = getSupabaseAdmin();
     const { searchParams } = new URL(request.url);
-    const userId = searchParams.get('user_id');
     const pattern = searchParams.get('pattern');
 
-    if (!userId || !pattern) {
+    if (!pattern) {
       return NextResponse.json(
-        { success: false, error: 'User ID and pattern are required' },
+        { success: false, error: 'Pattern is required' },
         { status: 400 }
       );
     }
@@ -110,7 +116,7 @@ export async function GET(request: NextRequest) {
     const { data, error } = await supabaseAdmin
       .from('merchant_rules')
       .select('id')
-      .eq('user_id', userId)
+      .eq('user_id', user!.id)
       .ilike('merchant_pattern', pattern)
       .limit(1);
 

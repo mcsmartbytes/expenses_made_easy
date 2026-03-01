@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/utils/supabaseAdmin';
+import { getAuthenticatedUser } from '@/utils/apiAuth';
 import {
   processItemMemories,
   processVendorMemories,
@@ -11,19 +12,17 @@ import {
   MemorySuggestion,
 } from '@/lib/moneyMemory';
 
-// GET /api/memory-suggestions?user_id=xxx&items=milk,bread&vendor=Whole+Foods
+// GET /api/memory-suggestions?items=milk,bread&vendor=Whole+Foods
 // Returns memory suggestions for specific items
 export async function GET(request: NextRequest) {
+  const { user, error: authError } = await getAuthenticatedUser(request);
+  if (authError) return authError;
+
   const searchParams = request.nextUrl.searchParams;
-  const userId = searchParams.get('user_id');
   const itemsParam = searchParams.get('items'); // comma-separated item names
   const vendor = searchParams.get('vendor');
   const mode = searchParams.get('mode') || 'suggestions'; // 'suggestions' | 'all' | 'item' | 'vendor'
   const itemName = searchParams.get('item_name'); // for single item lookup
-
-  if (!userId) {
-    return NextResponse.json({ error: 'user_id is required' }, { status: 400 });
-  }
 
   try {
     const supabaseAdmin = getSupabaseAdmin();
@@ -32,7 +31,7 @@ export async function GET(request: NextRequest) {
     const { data: priceHistory, error } = await supabaseAdmin
       .from('item_price_history')
       .select('item_name, item_name_normalized, unit_price, vendor, vendor_normalized, purchase_date, quantity, unit_of_measure')
-      .eq('user_id', userId)
+      .eq('user_id', user!.id)
       .order('purchase_date', { ascending: false })
       .limit(1000); // Limit for performance
 
@@ -164,12 +163,11 @@ export async function GET(request: NextRequest) {
 // Get suggestions for items with prices (more detailed)
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const { user_id, items, vendor } = body;
+    const { user, error: authError } = await getAuthenticatedUser(request);
+    if (authError) return authError;
 
-    if (!user_id) {
-      return NextResponse.json({ error: 'user_id is required' }, { status: 400 });
-    }
+    const body = await request.json();
+    const { items, vendor } = body;
 
     if (!items || !Array.isArray(items)) {
       return NextResponse.json({ error: 'items array is required' }, { status: 400 });
@@ -181,7 +179,7 @@ export async function POST(request: NextRequest) {
     const { data: priceHistory, error } = await supabaseAdmin
       .from('item_price_history')
       .select('item_name, item_name_normalized, unit_price, vendor, vendor_normalized, purchase_date, quantity, unit_of_measure')
-      .eq('user_id', user_id)
+      .eq('user_id', user!.id)
       .order('purchase_date', { ascending: false })
       .limit(1000);
 

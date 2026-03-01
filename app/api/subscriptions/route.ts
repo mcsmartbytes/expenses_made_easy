@@ -1,26 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/utils/supabaseAdmin';
+import { getAuthenticatedUser } from '@/utils/apiAuth';
 
 // GET - Fetch all subscriptions for a user
 export async function GET(request: NextRequest) {
+  const { user, error: authError } = await getAuthenticatedUser(request);
+  if (authError) return authError;
+
   try {
     const supabaseAdmin = getSupabaseAdmin();
     const { searchParams } = new URL(request.url);
-    const userId = searchParams.get('user_id');
     const includePrice = searchParams.get('include_price_history') === 'true';
-
-    if (!userId) {
-      return NextResponse.json(
-        { success: false, error: 'User ID is required' },
-        { status: 400 }
-      );
-    }
 
     // Fetch subscriptions
     const { data: subscriptions, error } = await supabaseAdmin
       .from('detected_subscriptions')
       .select('*')
-      .eq('user_id', userId)
+      .eq('user_id', user!.id)
       .eq('is_dismissed', false)
       .order('confidence', { ascending: false });
 
@@ -56,14 +52,17 @@ export async function GET(request: NextRequest) {
 
 // POST - Create or update a subscription
 export async function POST(request: NextRequest) {
+  const { user, error: authError } = await getAuthenticatedUser(request);
+  if (authError) return authError;
+
   try {
     const supabaseAdmin = getSupabaseAdmin();
     const body = await request.json();
-    const { user_id, vendor, ...subscriptionData } = body;
+    const { vendor, ...subscriptionData } = body;
 
-    if (!user_id || !vendor) {
+    if (!vendor) {
       return NextResponse.json(
-        { success: false, error: 'User ID and vendor are required' },
+        { success: false, error: 'Vendor is required' },
         { status: 400 }
       );
     }
@@ -75,7 +74,7 @@ export async function POST(request: NextRequest) {
       .from('detected_subscriptions')
       .upsert(
         {
-          user_id,
+          user_id: user!.id,
           vendor,
           vendor_normalized,
           ...subscriptionData,
@@ -102,6 +101,9 @@ export async function POST(request: NextRequest) {
 
 // PUT - Update subscription (confirm, dismiss, etc.)
 export async function PUT(request: NextRequest) {
+  const { user, error: authError } = await getAuthenticatedUser(request);
+  if (authError) return authError;
+
   try {
     const supabaseAdmin = getSupabaseAdmin();
     const body = await request.json();
@@ -138,6 +140,9 @@ export async function PUT(request: NextRequest) {
 
 // DELETE - Remove a subscription
 export async function DELETE(request: NextRequest) {
+  const { user, error: authError } = await getAuthenticatedUser(request);
+  if (authError) return authError;
+
   try {
     const supabaseAdmin = getSupabaseAdmin();
     const { searchParams } = new URL(request.url);

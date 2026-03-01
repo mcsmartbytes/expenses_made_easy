@@ -1,24 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/utils/supabaseAdmin';
+import { getAuthenticatedUser } from '@/utils/apiAuth';
 
 // GET - fetch all item category rules for a user
 export async function GET(request: NextRequest) {
   try {
-    const supabaseAdmin = getSupabaseAdmin();
-    const { searchParams } = new URL(request.url);
-    const userId = searchParams.get('user_id');
+    const { user, error: authError } = await getAuthenticatedUser(request);
+    if (authError) return authError;
 
-    if (!userId) {
-      return NextResponse.json(
-        { success: false, error: 'User ID is required' },
-        { status: 400 }
-      );
-    }
+    const supabaseAdmin = getSupabaseAdmin();
 
     const { data, error } = await supabaseAdmin
       .from('item_category_rules')
       .select('*, categories(id, name, icon, color)')
-      .eq('user_id', userId)
+      .eq('user_id', user!.id)
       .order('priority', { ascending: false })
       .order('created_at', { ascending: false });
 
@@ -36,10 +31,12 @@ export async function GET(request: NextRequest) {
 // POST - create a new item category rule
 export async function POST(request: NextRequest) {
   try {
+    const { user, error: authError } = await getAuthenticatedUser(request);
+    if (authError) return authError;
+
     const supabaseAdmin = getSupabaseAdmin();
     const body = await request.json();
     const {
-      user_id,
       item_pattern,
       match_type,
       category_id,
@@ -49,9 +46,9 @@ export async function POST(request: NextRequest) {
       auto_created,
     } = body;
 
-    if (!user_id || !item_pattern) {
+    if (!item_pattern) {
       return NextResponse.json(
-        { success: false, error: 'User ID and item pattern are required' },
+        { success: false, error: 'Item pattern is required' },
         { status: 400 }
       );
     }
@@ -59,7 +56,7 @@ export async function POST(request: NextRequest) {
     const { data, error } = await supabaseAdmin
       .from('item_category_rules')
       .insert({
-        user_id,
+        user_id: user!.id,
         item_pattern: item_pattern.trim().toLowerCase(),
         match_type: match_type || 'contains',
         category_id: category_id || null,
@@ -92,6 +89,9 @@ export async function POST(request: NextRequest) {
 // PUT - update an item category rule
 export async function PUT(request: NextRequest) {
   try {
+    const { error: authError } = await getAuthenticatedUser(request);
+    if (authError) return authError;
+
     const supabaseAdmin = getSupabaseAdmin();
     const body = await request.json();
     const { id, ...updates } = body;
@@ -132,6 +132,9 @@ export async function PUT(request: NextRequest) {
 // DELETE - delete an item category rule
 export async function DELETE(request: NextRequest) {
   try {
+    const { error: authError } = await getAuthenticatedUser(request);
+    if (authError) return authError;
+
     const supabaseAdmin = getSupabaseAdmin();
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');

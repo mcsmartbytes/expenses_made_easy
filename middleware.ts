@@ -1,55 +1,14 @@
 import { NextResponse } from 'next/server';
-import type { NextRequest } from 'next/server';
 
-export async function middleware(req: NextRequest) {
-  // Get the session token from cookies
-  const accessToken = req.cookies.get('sb-access-token')?.value;
-  const refreshToken = req.cookies.get('sb-refresh-token')?.value;
+// Auth is handled client-side by AuthContext (route protection)
+// and server-side by apiAuth.ts (API route Bearer token verification).
+// Middleware is intentionally minimal — no cookie-based auth checks
+// because the Supabase client uses localStorage, not cookies.
 
-  // Protected routes that require authentication
-  const protectedRoutes = [
-    '/expenses/dashboard',
-    '/expenses',
-    '/mileage',
-    '/profile',
-    '/budgets',
-    '/receipts',
-  ];
-
-  // Check if the current path is a protected route
-  const isProtectedRoute = protectedRoutes.some((route) =>
-    req.nextUrl.pathname.startsWith(route)
-  );
-
-  // TEMPORARY: Disable auth check for development
-  // Redirect to login if accessing protected route without session
-  // if (isProtectedRoute && !accessToken && !refreshToken) {
-  //   const redirectUrl = new URL('/auth/login', req.url);
-  //   redirectUrl.searchParams.set('redirect', req.nextUrl.pathname);
-  //   return NextResponse.redirect(redirectUrl);
-  // }
-
-  // Redirect to dashboard if accessing auth pages with active session
-  if (
-    (req.nextUrl.pathname.startsWith('/auth/login') ||
-      req.nextUrl.pathname.startsWith('/auth/signup')) &&
-    (accessToken || refreshToken)
-  ) {
-    return NextResponse.redirect(new URL('/expenses/dashboard', req.url));
-  }
-
+export async function middleware() {
   return NextResponse.next();
 }
 
 export const config = {
-  matcher: [
-    '/expenses/dashboard/:path*',
-    '/expenses/:path*',
-    '/mileage/:path*',
-    '/profile/:path*',
-    '/budgets/:path*',
-    '/receipts/:path*',
-    '/auth/login',
-    '/auth/signup',
-  ],
+  matcher: [],
 };

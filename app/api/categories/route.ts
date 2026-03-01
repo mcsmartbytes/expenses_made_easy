@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/utils/supabaseAdmin';
+import { getAuthenticatedUser } from '@/utils/apiAuth';
 
 // GET - fetch all categories
 export async function GET() {
@@ -23,10 +24,13 @@ export async function GET() {
 
 // POST - create one or more categories
 export async function POST(request: NextRequest) {
+  const { user, error: authError } = await getAuthenticatedUser(request);
+  if (authError) return authError;
+
   try {
     const supabaseAdmin = getSupabaseAdmin();
     const body = await request.json();
-    const { categories, user_id } = body;
+    const { categories } = body;
 
     if (!categories || !Array.isArray(categories) || categories.length === 0) {
       return NextResponse.json(
@@ -35,15 +39,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Only include user_id if provided (for authenticated users)
-    // Otherwise, omit it to allow NULL (requires DB column to be nullable)
     const categoriesToInsert = categories.map((cat: any) => {
-      const { user_id: catUserId, ...rest } = cat;
-      const finalUserId = catUserId || user_id;
-      if (finalUserId) {
-        return { ...rest, user_id: finalUserId };
-      }
-      return rest; // No user_id - will be NULL if column allows
+      const { user_id: _catUserId, ...rest } = cat;
+      return { ...rest, user_id: user!.id };
     });
 
     const { data, error } = await supabaseAdmin
@@ -64,6 +62,9 @@ export async function POST(request: NextRequest) {
 
 // DELETE - delete a category by ID
 export async function DELETE(request: NextRequest) {
+  const { user, error: authError } = await getAuthenticatedUser(request);
+  if (authError) return authError;
+
   try {
     const supabaseAdmin = getSupabaseAdmin();
     const { searchParams } = new URL(request.url);
@@ -94,6 +95,9 @@ export async function DELETE(request: NextRequest) {
 
 // PUT - update a category
 export async function PUT(request: NextRequest) {
+  const { user, error: authError } = await getAuthenticatedUser(request);
+  if (authError) return authError;
+
   try {
     const supabaseAdmin = getSupabaseAdmin();
     const body = await request.json();

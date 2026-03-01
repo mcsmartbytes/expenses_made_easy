@@ -8,6 +8,7 @@ import PredictiveAlerts from '@/components/PredictiveAlerts';
 import GamificationWidget from '@/components/GamificationWidget';
 import ActionableInsights from '@/components/ActionableInsights';
 import { supabase } from '@/utils/supabase';
+import { apiFetch } from '@/utils/apiFetch';
 
 type Expense = {
   id: string;
@@ -97,7 +98,7 @@ export default function ExpensesDashboardPage() {
   useEffect(() => { void checkCategories(); }, []);
   async function checkCategories() {
     try {
-      const res = await fetch('/api/categories');
+      const res = await apiFetch('/api/categories');
       const json = await res.json();
       if (json.success) setHasCategories((json.data || []).length > 0);
     } catch {
@@ -131,7 +132,7 @@ export default function ExpensesDashboardPage() {
         <Navigation variant="expenses" />
         <div className="flex flex-col items-center justify-center py-24 gap-4">
           <p className="text-red-300 text-sm">{error}</p>
-          <Link href="/auth/signin" className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700">
+          <Link href="/auth/login" className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700">
             Sign in
           </Link>
         </div>
