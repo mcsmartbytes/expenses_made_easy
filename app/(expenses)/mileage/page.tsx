@@ -48,6 +48,7 @@ export default function MileagePage() {
   const [editPurpose, setEditPurpose] = useState('');
   const [editIsBusiness, setEditIsBusiness] = useState(true);
 
+  const wakeLockRef = useRef<WakeLockSentinel | null>(null);
   const watchIdRef = useRef<number | null>(null);
   const lastPositionRef = useRef<{ lat: number; lon: number; timestamp: number } | null>(null);
   const autoStartTriggered = useRef(false);
@@ -71,6 +72,7 @@ export default function MileagePage() {
     return () => {
       if (watchIdRef.current !== null) navigator.geolocation.clearWatch(watchIdRef.current);
       if (idleCheckIntervalRef.current) clearInterval(idleCheckIntervalRef.current);
+      releaseWakeLock();
       nativeMileageTracker.destroy();
     };
   }, []);
@@ -200,6 +202,27 @@ export default function MileagePage() {
   const personalMiles = filteredTrips.filter(t => !t.is_business).reduce((sum, t) => sum + t.distance, 0);
   const taxDeduction = filteredTrips.filter(t => t.is_business).reduce((sum, t) => sum + t.distance * (t.rate || getCurrentMileageRate()), 0);
 
+  async function acquireWakeLock() {
+    try {
+      if ('wakeLock' in navigator) {
+        wakeLockRef.current = await navigator.wakeLock.request('screen');
+        console.log('Wake Lock acquired — screen will stay on');
+        wakeLockRef.current.addEventListener('release', () => {
+          console.log('Wake Lock released');
+        });
+      }
+    } catch (err) {
+      console.log('Wake Lock not available:', err);
+    }
+  }
+
+  function releaseWakeLock() {
+    if (wakeLockRef.current) {
+      wakeLockRef.current.release();
+      wakeLockRef.current = null;
+    }
+  }
+
   function startSpeedMonitoring() {
     if (!navigator.geolocation) { alert('Geolocation is not supported by your browser'); return; }
 
@@ -314,7 +337,9 @@ export default function MileagePage() {
       return;
     }
 
-    // Web-based tracking fallback
+    // Web-based tracking fallback — keep screen on
+    acquireWakeLock();
+
     if (initialLat !== undefined && initialLon !== undefined) {
       lastPositionRef.current = { lat: initialLat, lon: initialLon, timestamp: Date.now() };
       const start = await reverseGeocode(initialLat, initialLon);
@@ -374,6 +399,7 @@ export default function MileagePage() {
     setIsTracking(false);
     isTrackingRef.current = false;
     autoStartTriggered.current = false; // Allow auto-start for next trip
+    releaseWakeLock();
 
     // Use native tracking if available
     if (isNativeMode) {

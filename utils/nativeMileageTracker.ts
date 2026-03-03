@@ -18,6 +18,9 @@ const MAX_DISTANCE_THRESHOLD = 0.5;
 // Speed threshold to detect movement (mph)
 const MOVEMENT_SPEED_THRESHOLD = 2;
 
+// localStorage key for crash recovery
+const PERSIST_KEY = 'nativeMileageTracker_state';
+
 // Auto-start speed threshold (mph) - default, can be overridden via setAutoStartSpeed()
 let AUTO_START_SPEED_MPH = 5;
 
@@ -99,6 +102,69 @@ class NativeMileageTracker {
   }
 
   /**
+   * Persist current tracking state to localStorage for crash recovery
+   */
+  private persistState(): void {
+    try {
+      const data = {
+        isTracking: this.state.isTracking,
+        distance: this.state.distance,
+        startLocation: this.state.startLocation,
+        lastPosition: this.state.lastPosition,
+        lastMovementTime: this.state.lastMovementTime,
+        startTime: this.state.startTime,
+      };
+      localStorage.setItem(PERSIST_KEY, JSON.stringify(data));
+    } catch {
+      // localStorage may be unavailable
+    }
+  }
+
+  /**
+   * Restore tracking state from localStorage after crash/reload
+   * Returns true if an in-progress trip was restored
+   */
+  private restoreState(): boolean {
+    try {
+      const raw = localStorage.getItem(PERSIST_KEY);
+      if (!raw) return false;
+
+      const data = JSON.parse(raw);
+      if (!data.isTracking || !data.startTime) return false;
+
+      // Only restore if the trip started less than 24 hours ago
+      const age = Date.now() - data.startTime;
+      if (age > 24 * 60 * 60 * 1000) {
+        this.clearPersistedState();
+        return false;
+      }
+
+      this.state.isTracking = true;
+      this.state.distance = data.distance || 0;
+      this.state.startLocation = data.startLocation || null;
+      this.state.lastPosition = data.lastPosition || null;
+      this.state.lastMovementTime = data.lastMovementTime || Date.now();
+      this.state.startTime = data.startTime;
+
+      this.startIdleCheck();
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Clear persisted state after trip is saved
+   */
+  private clearPersistedState(): void {
+    try {
+      localStorage.removeItem(PERSIST_KEY);
+    } catch {
+      // localStorage may be unavailable
+    }
+  }
+
+  /**
    * Initialize the tracker with callbacks
    */
   async initialize(callbacks: MileageTrackerCallbacks): Promise<boolean> {
@@ -130,6 +196,15 @@ class NativeMileageTracker {
 
       // Start watching for location updates (for speed detection and auto-start)
       await this.startBackgroundWatcher();
+
+      // Check for a trip that was in progress before crash/reload
+      const restored = this.restoreState();
+      if (restored) {
+        console.log('Restored in-progress trip:', this.state.distance.toFixed(2), 'miles');
+        this.callbacks?.onDistanceUpdate(this.state.distance);
+        this.callbacks?.onAutoStart();
+      }
+
       return true;
     } catch (error) {
       console.log('Native tracking not available:', error);
@@ -210,6 +285,11 @@ class NativeMileageTracker {
 
     // Update last position
     this.state.lastPosition = { lat: latitude, lon: longitude, timestamp };
+
+    // Persist state for crash recovery
+    if (this.state.isTracking) {
+      this.persistState();
+    }
   }
 
   /**
@@ -241,6 +321,9 @@ class NativeMileageTracker {
 
     // Start idle check interval
     this.startIdleCheck();
+
+    // Persist state for crash recovery
+    this.persistState();
   }
 
   /**
@@ -269,6 +352,9 @@ class NativeMileageTracker {
     this.state.startLocation = null;
     this.state.startTime = null;
     this.autoStartEnabled = true; // Re-enable auto-start for next trip
+
+    // Clear persisted state — trip is saved
+    this.clearPersistedState();
 
     return tripData;
   }
