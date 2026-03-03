@@ -26,7 +26,7 @@
     "@capacitor/cli": "^8.0.0",
     "@capacitor/core": "^8.0.0",
     "@capacitor/ios": "^8.0.0",
-    "@sentry/nextjs": "^10.32.1",
+    "@sentry/nextjs": "^10.41.0",
     "@stripe/stripe-js": "^2.4.0",
     "@supabase/supabase-js": "^2.45.0",
     "next": "^16.0.8",
