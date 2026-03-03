@@ -92,15 +92,27 @@ export default function LearningPromptModal({
   const selectedCategory = categories.find((c) => c.id === categoryId);
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
-        <div className="p-6">
+    <div
+      className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-end sm:items-center justify-center"
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <div
+        className="bg-white w-full sm:max-w-md sm:rounded-lg rounded-t-2xl shadow-xl flex flex-col"
+        style={{ maxHeight: 'calc(100dvh - 2rem)', maxWidth: '100%' }}
+      >
+        {/* Scrollable content */}
+        <div className="overflow-y-auto flex-1 p-4 sm:p-6">
+          {/* Drag handle for mobile */}
+          <div className="flex justify-center mb-3 sm:hidden">
+            <div className="w-10 h-1 bg-gray-300 rounded-full" />
+          </div>
+
           {/* Header */}
-          <div className="flex justify-between items-start mb-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center">
+          <div className="flex justify-between items-start mb-3">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center flex-shrink-0">
                 <svg
-                  className="w-5 h-5 text-purple-600"
+                  className="w-4 h-4 text-purple-600"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -114,13 +126,13 @@ export default function LearningPromptModal({
                 </svg>
               </div>
               <div>
-                <h2 className="text-lg font-semibold text-gray-900">Learn This Pattern?</h2>
-                <p className="text-sm text-gray-500">Save time on future entries</p>
+                <h2 className="text-base font-semibold text-gray-900">Learn This Pattern?</h2>
+                <p className="text-xs text-gray-500">Save time on future entries</p>
               </div>
             </div>
             <button
               onClick={onClose}
-              className="text-gray-400 hover:text-gray-600"
+              className="text-gray-400 hover:text-gray-600 p-1"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path
@@ -134,32 +146,32 @@ export default function LearningPromptModal({
           </div>
 
           {/* Message */}
-          <div className="mb-5 p-3 bg-gray-50 rounded-lg">
+          <div className="mb-3 p-2 bg-gray-50 rounded-lg">
             <p className="text-sm text-gray-700">{suggestion.displayMessage}</p>
-            <p className="text-sm text-gray-500 mt-1">
-              Would you like to apply this automatically next time?
+            <p className="text-xs text-gray-500 mt-1">
+              Apply this automatically next time?
             </p>
           </div>
 
           {/* Rule Configuration */}
-          <div className="space-y-4">
+          <div className="space-y-3">
             {/* Pattern */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-xs font-medium text-gray-700 mb-1">
                 {patternLabel} Pattern
               </label>
               <input
                 type="text"
                 value={pattern}
                 onChange={(e) => setPattern(e.target.value)}
-                className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                className="w-full px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
                 placeholder={`Enter ${patternLabel.toLowerCase()} pattern...`}
               />
             </div>
 
             {/* Match Type */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-xs font-medium text-gray-700 mb-1">
                 Match Type
               </label>
               <select
@@ -167,30 +179,25 @@ export default function LearningPromptModal({
                 onChange={(e) =>
                   setMatchType(e.target.value as 'exact' | 'contains' | 'starts_with')
                 }
-                className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                className="w-full px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
               >
                 <option value="exact">Exact match</option>
                 <option value="contains">Contains</option>
                 <option value="starts_with">Starts with</option>
               </select>
-              <p className="text-xs text-gray-500 mt-1">
-                {matchType === 'exact' && 'Only matches if the text is exactly the same'}
-                {matchType === 'contains' && 'Matches if the text appears anywhere'}
-                {matchType === 'starts_with' && 'Matches if the text starts with this pattern'}
-              </p>
             </div>
 
             {/* Category */}
             {(suggestion.correctionType === 'vendor_category' ||
               suggestion.correctionType === 'item_category') && (
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-xs font-medium text-gray-700 mb-1">
                   Category
                 </label>
                 <select
                   value={categoryId}
                   onChange={(e) => setCategoryId(e.target.value)}
-                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                  className="w-full px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
                 >
                   <option value="">Select category...</option>
                   {categories.map((cat) => (
@@ -203,7 +210,7 @@ export default function LearningPromptModal({
             )}
 
             {/* Business/Personal Toggle */}
-            <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+            <div className="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
               <span className="text-sm font-medium text-gray-700">Mark as Business</span>
               <button
                 type="button"
@@ -220,14 +227,14 @@ export default function LearningPromptModal({
               </button>
             </div>
 
-            {/* Preview */}
-            <div className="p-3 border border-dashed border-gray-300 rounded-lg">
+            {/* Preview - desktop only */}
+            <div className="hidden sm:block p-3 border border-dashed border-gray-300 rounded-lg">
               <p className="text-xs font-medium text-gray-500 mb-1">RULE PREVIEW</p>
               <p className="text-sm text-gray-700">
                 When {patternLabel.toLowerCase()}{' '}
                 <span className="font-mono bg-gray-100 px-1 rounded">
                   {matchType === 'exact' ? '=' : matchType === 'starts_with' ? 'starts with' : 'contains'}{' '}
-                  "{pattern}"
+                  &quot;{pattern}&quot;
                 </span>
               </p>
               <p className="text-sm text-gray-700">
@@ -244,60 +251,62 @@ export default function LearningPromptModal({
 
             {/* Error */}
             {error && (
-              <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+              <div className="p-2 bg-red-50 border border-red-200 rounded-lg">
                 <p className="text-sm text-red-700">{error}</p>
               </div>
             )}
           </div>
+        </div>
 
-          {/* Actions */}
-          <div className="mt-6 flex flex-col gap-2">
-            <div className="flex gap-2">
-              <button
-                onClick={onClose}
-                disabled={saving}
-                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 font-medium disabled:opacity-50"
-              >
-                Not Now
-              </button>
-              <button
-                onClick={handleSaveRule}
-                disabled={saving || !pattern.trim()}
-                className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-medium disabled:opacity-50 flex items-center justify-center gap-2"
-              >
-                {saving ? (
-                  <>
-                    <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
-                      <circle
-                        className="opacity-25"
-                        cx="12"
-                        cy="12"
-                        r="10"
-                        stroke="currentColor"
-                        strokeWidth="4"
-                        fill="none"
-                      />
-                      <path
-                        className="opacity-75"
-                        fill="currentColor"
-                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                      />
-                    </svg>
-                    Saving...
-                  </>
-                ) : (
-                  'Save Rule'
-                )}
-              </button>
-            </div>
+        {/* Sticky bottom actions — always visible */}
+        <div className="flex-shrink-0 border-t border-gray-200 p-4 bg-white sm:rounded-b-lg"
+          style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}
+        >
+          <div className="flex gap-2">
             <button
-              onClick={handleNeverAsk}
+              onClick={onClose}
               disabled={saving}
-              className="w-full px-4 py-2 text-sm text-gray-500 hover:text-gray-700 disabled:opacity-50"
+              className="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 font-medium disabled:opacity-50 text-sm"
             >
-              Don't ask again for this {isItemRule ? 'item' : 'vendor'}
+              Not Now
+            </button>
+            <button
+              onClick={handleSaveRule}
+              disabled={saving || !pattern.trim()}
+              className="flex-1 px-4 py-2.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-medium disabled:opacity-50 flex items-center justify-center gap-2 text-sm"
+            >
+              {saving ? (
+                <>
+                  <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                      fill="none"
+                    />
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                    />
+                  </svg>
+                  Saving...
+                </>
+              ) : (
+                'Save Rule'
+              )}
             </button>
           </div>
+          <button
+            onClick={handleNeverAsk}
+            disabled={saving}
+            className="w-full mt-2 px-4 py-1.5 text-xs text-gray-500 hover:text-gray-700 disabled:opacity-50"
+          >
+            Don&apos;t ask again for this {isItemRule ? 'item' : 'vendor'}
+          </button>
         </div>
       </div>
     </div>

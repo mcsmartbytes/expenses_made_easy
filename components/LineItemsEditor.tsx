@@ -261,8 +261,129 @@ export default function LineItemsEditor({
         </div>
       )}
 
-      {/* Items Table */}
-      <div className="overflow-x-auto">
+      {/* Items — Card layout on mobile, table on desktop */}
+      {/* Mobile cards */}
+      <div className="sm:hidden space-y-3">
+        {items.map((item, index) => {
+          const alert = priceAlerts.get(item.item_name);
+          const hasAlert = !!alert;
+
+          return (
+            <div key={index} className={`rounded-lg border p-3 ${hasAlert ? 'bg-amber-50 border-amber-200' : 'bg-white border-gray-200'}`}>
+              <div className="flex justify-between items-start gap-2 mb-2">
+                {readOnly ? (
+                  <span className="text-sm font-medium text-gray-900 flex-1">{item.item_name}</span>
+                ) : (
+                  <input
+                    type="text"
+                    value={item.item_name}
+                    onChange={(e) => handleItemChange(index, 'item_name', e.target.value)}
+                    className="flex-1 px-2 py-1.5 border rounded text-sm font-medium focus:ring-2 focus:ring-purple-500"
+                    placeholder="Item name"
+                  />
+                )}
+                {!readOnly && (
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveItem(index)}
+                    className="text-red-400 hover:text-red-600 p-1 flex-shrink-0"
+                    title="Remove item"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                )}
+              </div>
+              {hasAlert && (
+                <div className="mb-2 flex items-center gap-1">
+                  <span className={`text-xs font-medium ${alert.change_pct > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                    {alert.change_pct > 0 ? '↑' : '↓'} {Math.abs(alert.change_pct).toFixed(1)}%
+                  </span>
+                  <span className="text-xs text-gray-500">
+                    vs {formatPrice(alert.previous_price)} on {new Date(alert.previous_date).toLocaleDateString()}
+                  </span>
+                </div>
+              )}
+              <div className="flex items-center gap-2">
+                <div className="flex-1">
+                  <label className="block text-xs text-gray-500 mb-0.5">Qty</label>
+                  {readOnly ? (
+                    <span className="text-sm">{formatQuantity(item.quantity)}</span>
+                  ) : (
+                    <input
+                      type="number"
+                      step="0.001"
+                      min="0"
+                      value={item.quantity}
+                      onChange={(e) => handleItemChange(index, 'quantity', e.target.value)}
+                      className="w-full px-2 py-1.5 border rounded text-sm focus:ring-2 focus:ring-purple-500"
+                    />
+                  )}
+                </div>
+                <div className="flex-1">
+                  <label className="block text-xs text-gray-500 mb-0.5">Unit</label>
+                  {readOnly ? (
+                    <span className="text-sm text-gray-500">{item.unit_of_measure || 'ea'}</span>
+                  ) : (
+                    <select
+                      value={item.unit_of_measure || 'each'}
+                      onChange={(e) => handleItemChange(index, 'unit_of_measure', e.target.value)}
+                      className="w-full px-2 py-1.5 border rounded text-sm focus:ring-2 focus:ring-purple-500"
+                    >
+                      <option value="each">each</option>
+                      <option value="lb">lb</option>
+                      <option value="oz">oz</option>
+                      <option value="gal">gal</option>
+                      <option value="L">L</option>
+                      <option value="kg">kg</option>
+                      <option value="g">g</option>
+                      <option value="pack">pack</option>
+                      <option value="box">box</option>
+                      <option value="case">case</option>
+                      <option value="dozen">dozen</option>
+                    </select>
+                  )}
+                </div>
+                <div className="flex-1">
+                  <label className="block text-xs text-gray-500 mb-0.5">Price</label>
+                  {readOnly ? (
+                    <span className={`text-sm ${hasAlert && alert.change_pct > 0 ? 'text-red-600 font-medium' : ''}`}>
+                      {formatPrice(item.unit_price)}
+                    </span>
+                  ) : (
+                    <div className="relative">
+                      <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400 text-xs">$</span>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={item.unit_price}
+                        onChange={(e) => handleItemChange(index, 'unit_price', e.target.value)}
+                        className={`w-full pl-5 pr-1 py-1.5 border rounded text-sm text-right focus:ring-2 focus:ring-purple-500 ${
+                          hasAlert && alert.change_pct > 0 ? 'border-red-300 bg-red-50' : ''
+                        }`}
+                      />
+                    </div>
+                  )}
+                </div>
+                <div className="flex-shrink-0 text-right min-w-[3.5rem]">
+                  <label className="block text-xs text-gray-500 mb-0.5">Total</label>
+                  <span className="text-sm font-semibold text-gray-900">{formatPrice(item.line_total)}</span>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+        {/* Mobile total */}
+        <div className="flex justify-between items-center px-3 py-2 bg-gray-100 rounded-lg font-medium">
+          <span className="text-sm">Items Total:</span>
+          <span className="text-sm text-purple-700">{formatPrice(totalAmount)}</span>
+        </div>
+      </div>
+
+      {/* Desktop table */}
+      <div className="hidden sm:block overflow-x-auto">
         <table className="w-full text-sm">
           <thead className="bg-gray-100 text-gray-700">
             <tr>
