@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { supabase } from '@/utils/supabase';
+import { apiFetch } from '@/utils/apiFetch';
 
 interface PredictiveAlert {
   id: string;
@@ -49,7 +50,7 @@ export default function PredictiveAlerts() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      const res = await fetch(`/api/analytics/forecast?user_id=${user.id}`);
+      const res = await apiFetch(`/api/analytics/forecast?user_id=${user.id}`);
       const result = await res.json();
 
       if (result.success) {

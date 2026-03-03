@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { apiFetch } from '@/utils/apiFetch';
 
 interface GamificationSummary {
   level: number;
@@ -47,7 +48,7 @@ export default function GamificationWidget({ userId, variant = 'full' }: Gamific
   const fetchGamificationData = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`/api/gamification?user_id=${userId}`);
+      const response = await apiFetch(`/api/gamification?user_id=${userId}`);
       if (!response.ok) throw new Error('Failed to fetch gamification data');
 
       const data = await response.json();

@@ -18,8 +18,8 @@ const MAX_DISTANCE_THRESHOLD = 0.5;
 // Speed threshold to detect movement (mph)
 const MOVEMENT_SPEED_THRESHOLD = 2;
 
-// Auto-start speed threshold (mph)
-const AUTO_START_SPEED_MPH = 5;
+// Auto-start speed threshold (mph) - default, can be overridden via setAutoStartSpeed()
+let AUTO_START_SPEED_MPH = 5;
 
 // Idle timeout for auto-save (15 minutes in ms)
 const IDLE_TIMEOUT_MS = 15 * 60 * 1000;
@@ -87,6 +87,7 @@ class NativeMileageTracker {
   private watcherId: string | null = null;
   private idleCheckInterval: ReturnType<typeof setInterval> | null = null;
   private autoStartEnabled: boolean = true;
+  private autoStartSpeedMph: number = AUTO_START_SPEED_MPH;
   private isNativePlatform: boolean = false;
   private BackgroundGeolocation: BackgroundGeolocationPlugin | null = null;
 
@@ -181,7 +182,7 @@ class NativeMileageTracker {
     this.callbacks?.onSpeedUpdate(speedMph);
 
     // Auto-start if moving fast enough and not already tracking
-    if (this.autoStartEnabled && !this.state.isTracking && speedMph >= AUTO_START_SPEED_MPH) {
+    if (this.autoStartEnabled && !this.state.isTracking && speedMph >= this.autoStartSpeedMph) {
       this.startTracking(latitude, longitude);
       this.callbacks?.onAutoStart();
     }
@@ -333,6 +334,13 @@ class NativeMileageTracker {
    */
   enableAutoStart(): void {
     this.autoStartEnabled = true;
+  }
+
+  /**
+   * Set the auto-start speed threshold (mph)
+   */
+  setAutoStartSpeed(speedMph: number): void {
+    this.autoStartSpeedMph = speedMph;
   }
 
   /**

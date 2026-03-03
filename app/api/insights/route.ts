@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSupabaseAdmin } from '@/utils/supabaseAdmin';
 import { getAuthenticatedUser } from '@/utils/apiAuth';
+import { getCurrentMileageRate, getCurrentMileageRateDisplay } from '@/lib/irsRates';
 
 interface Insight {
   id: string;
@@ -197,7 +198,7 @@ export async function GET(request: NextRequest) {
     const businessMileage = (mileageData || [])
       .filter(m => m.is_business)
       .reduce((sum, m) => sum + Number(m.distance), 0);
-    const mileageDeduction = businessMileage * 0.67; // 2024 IRS rate
+    const mileageDeduction = businessMileage * getCurrentMileageRate();
 
     const totalDeductions = deductibleAmount + mileageDeduction;
 
@@ -257,7 +258,7 @@ export async function GET(request: NextRequest) {
         type: 'savings_opportunity',
         priority: 'medium',
         title: 'Track Your Mileage',
-        message: 'You have business expenses but no mileage logged this month. Business driving is tax deductible at $0.67/mile!',
+        message: `You have business expenses but no mileage logged this month. Business driving is tax deductible at ${getCurrentMileageRateDisplay()}/mile!`,
         action: {
           label: 'Log Mileage',
           href: '/mileage',

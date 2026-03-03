@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { supabase } from '@/utils/supabase';
+import { apiFetch } from '@/utils/apiFetch';
 
 interface SpendingInsight {
   type: 'increase' | 'decrease' | 'new' | 'gone';
@@ -41,7 +42,7 @@ export default function SpendingInsights() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      const res = await fetch(`/api/analytics/spending-change?user_id=${user.id}&period=${period}`);
+      const res = await apiFetch(`/api/analytics/spending-change?user_id=${user.id}&period=${period}`);
       const data = await res.json();
 
       if (data.success) {

@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import Navigation from '@/components/Navigation';
 import { supabase } from '@/utils/supabase';
 import { apiFetch } from '@/utils/apiFetch';
 import { canAddExpense } from '@/utils/subscription';
@@ -17,6 +18,48 @@ import {
 } from '@/lib/learningDetection';
 import AchievementToast from '@/components/AchievementToast';
 import { useUserMode } from '@/contexts/UserModeContext';
+
+// Keyword-based category suggestions for new users without merchant rules
+const VENDOR_CATEGORY_KEYWORDS: Record<string, string[]> = {
+  'Travel': ['hotel', 'hilton', 'marriott', 'hyatt', 'inn', 'suites', 'airbnb', 'booking', 'expedia', 'airlines', 'airline', 'delta', 'united', 'american air', 'southwest', 'jetblue', 'frontier', 'spirit', 'hertz', 'avis', 'enterprise', 'national car', 'budget rent', 'uber', 'lyft', 'taxi', 'amtrak', 'greyhound'],
+  'Meals & Entertainment': ['restaurant', 'cafe', 'coffee', 'starbucks', 'dunkin', 'mcdonald', 'wendy', 'burger', 'pizza', 'subway', 'chipotle', 'panera', 'chick-fil-a', 'taco bell', 'diner', 'grill', 'bistro', 'kitchen', 'eatery', 'doordash', 'grubhub', 'ubereats'],
+  'Vehicle': ['gas', 'fuel', 'shell', 'exxon', 'mobil', 'chevron', 'bp ', 'texaco', 'sunoco', 'citgo', 'valero', 'marathon', 'speedway', 'wawa', 'quiktrip', 'racetrac', 'autozone', 'advance auto', 'o\'reilly', 'napa auto', 'jiffy lube', 'valvoline', 'car wash'],
+  'Office Supplies': ['office depot', 'officemax', 'staples', 'amazon', 'best buy', 'newegg', 'micro center'],
+  'Utilities': ['electric', 'power', 'gas company', 'water', 'internet', 'comcast', 'at&t', 'verizon', 'spectrum', 't-mobile', 'sprint'],
+  'Insurance': ['insurance', 'geico', 'state farm', 'progressive', 'allstate', 'liberty mutual'],
+  'Professional Services': ['legal', 'lawyer', 'attorney', 'accountant', 'cpa', 'consultant', 'quickbooks', 'intuit'],
+  'Marketing': ['facebook ads', 'google ads', 'meta ads', 'mailchimp', 'constant contact', 'vistaprint', 'marketing'],
+};
+
+// Map OCR receipt_type to likely category names
+const RECEIPT_TYPE_CATEGORY_MAP: Record<string, string> = {
+  hotel: 'Travel',
+  airline: 'Travel',
+  car_rental: 'Travel',
+  restaurant: 'Meals & Entertainment',
+  gas: 'Vehicle',
+  parking: 'Vehicle',
+  service: 'Professional Services',
+  retail: 'Office Supplies',
+};
+
+function suggestCategoryFromVendor(vendor: string, categories: Array<{ id: string; name: string }>): string | null {
+  const vendorLower = vendor.toLowerCase();
+  for (const [categoryName, keywords] of Object.entries(VENDOR_CATEGORY_KEYWORDS)) {
+    if (keywords.some(kw => vendorLower.includes(kw))) {
+      const match = categories.find(c => c.name.toLowerCase().includes(categoryName.toLowerCase()));
+      if (match) return match.id;
+    }
+  }
+  return null;
+}
+
+function suggestCategoryFromReceiptType(receiptType: string, categories: Array<{ id: string; name: string }>): string | null {
+  const categoryName = RECEIPT_TYPE_CATEGORY_MAP[receiptType];
+  if (!categoryName) return null;
+  const match = categories.find(c => c.name.toLowerCase().includes(categoryName.toLowerCase()));
+  return match?.id ?? null;
+}
 
 interface Category {
   id: string;
@@ -138,6 +181,14 @@ export default function NewExpensePage() {
         }));
       } else {
         setRuleApplied(null);
+        // Keyword-based fallback for new users without merchant rules
+        setFormData(prev => {
+          if (!prev.category_id) {
+            const suggested = suggestCategoryFromVendor(vendor, categories);
+            if (suggested) return { ...prev, category_id: suggested };
+          }
+          return prev;
+        });
       }
     } catch (error) {
       console.error('Error checking merchant rule:', error);
@@ -335,13 +386,21 @@ export default function NewExpensePage() {
   async function handleScanReceipt() {
     if (!receiptFile) return;
 
+    const isPdf = receiptFile.type === 'application/pdf' || receiptFile.name.toLowerCase().endsWith('.pdf');
+
+    // PDF size guard - reject >4MB PDFs with helpful message
+    if (isPdf && receiptFile.size > 4 * 1024 * 1024) {
+      alert('PDF files must be under 4MB. Try scanning or photographing the receipt instead.');
+      return;
+    }
+
     setScanningReceipt(true);
     try {
-      // Compress image if it's too large
+      // Compress images if too large, but skip for PDFs (canvas can't process them)
       let fileToSend = receiptFile;
       const maxSize = 4 * 1024 * 1024; // 4MB limit for Vercel
 
-      if (receiptFile.size > maxSize) {
+      if (!isPdf && receiptFile.size > maxSize) {
         fileToSend = await compressImage(receiptFile);
       }
 
@@ -362,15 +421,38 @@ export default function NewExpensePage() {
       if (result.success && result.data) {
         setOcrData(result.data);
 
+        // Build description — enrich for hotel receipts
+        let description = result.data.description || '';
+        if (result.data.receipt_type === 'hotel' && result.data.check_in_date) {
+          const nights = result.data.number_of_nights || '';
+          const room = result.data.room_number ? ` Room ${result.data.room_number}` : '';
+          description = `Hotel stay${room}: ${result.data.check_in_date} to ${result.data.check_out_date || ''}${nights ? ` (${nights} night${nights > 1 ? 's' : ''})` : ''}`;
+        }
+
         // Auto-fill form fields with OCR data
-        setFormData((prev) => ({
-          ...prev,
-          amount: result.data.amount || prev.amount,
-          vendor: result.data.vendor || prev.vendor,
-          date: result.data.date || prev.date,
-          description: result.data.description || prev.description,
-          payment_method: result.data.payment_method || prev.payment_method,
-        }));
+        setFormData((prev) => {
+          const updated = {
+            ...prev,
+            amount: result.data.amount || prev.amount,
+            vendor: result.data.vendor || prev.vendor,
+            date: result.data.date || prev.date,
+            description: description || prev.description,
+            payment_method: result.data.payment_method || prev.payment_method,
+          };
+
+          // Suggest category from receipt_type or vendor keywords if not already set
+          if (!updated.category_id && categories.length > 0) {
+            const fromType = result.data.receipt_type
+              ? suggestCategoryFromReceiptType(result.data.receipt_type, categories)
+              : null;
+            const fromVendor = result.data.vendor
+              ? suggestCategoryFromVendor(result.data.vendor, categories)
+              : null;
+            updated.category_id = fromType || fromVendor || '';
+          }
+
+          return updated;
+        });
 
         // Convert OCR line items to our format
         if (result.data.line_items && Array.isArray(result.data.line_items)) {
@@ -388,10 +470,10 @@ export default function NewExpensePage() {
           setShowLineItems(true);
         }
 
-        alert('✅ Receipt scanned successfully! Review the auto-filled information and line items.');
+        alert('Receipt scanned successfully! Review the auto-filled information and line items.');
       }
     } catch (error: any) {
-      alert('❌ Failed to scan receipt: ' + (error.message || 'Unknown error'));
+      alert('Failed to scan receipt: ' + (error.message || 'Unknown error'));
     } finally {
       setScanningReceipt(false);
     }
@@ -530,8 +612,9 @@ export default function NewExpensePage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
-      <div className="max-w-3xl mx-auto px-4">
+    <div className="min-h-screen bg-gray-50">
+      <Navigation variant="expenses" />
+      <main className="max-w-3xl mx-auto px-4 py-8">
         {/* Subscription Limit Warning */}
         {subscriptionLimit && !subscriptionLimit.allowed && (
           <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
@@ -1051,9 +1134,16 @@ export default function NewExpensePage() {
                     )}
                   </div>
                 )}
-                <p className="text-xs text-gray-500">
-                  💡 Tip: Take a photo with your phone camera, then click "Scan Receipt with AI" to automatically extract amount, vendor, and date!
-                </p>
+                <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
+                  <p className="text-xs font-semibold text-gray-700 mb-1.5">How Receipt Scanning Works</p>
+                  <ol className="text-xs text-gray-600 space-y-1 list-decimal list-inside">
+                    <li>Select a photo or PDF of your receipt</li>
+                    <li>Click &quot;Scan Receipt with AI&quot; to extract data</li>
+                    <li>Review the auto-filled amount, vendor, date, and line items</li>
+                    <li>Make any corrections and submit</li>
+                  </ol>
+                  <p className="text-xs text-gray-500 mt-1.5">Supports retail, restaurant, hotel, gas station, and parking receipts (images & PDFs)</p>
+                </div>
               </div>
             </div>
 
@@ -1135,7 +1225,7 @@ export default function NewExpensePage() {
             </div>
           </form>
         </div>
-      </div>
+      </main>
 
       {/* Learning Prompt Modal */}
       {showLearningModal && learningSuggestion && userId && (

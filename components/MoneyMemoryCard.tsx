@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { formatPrice, formatDate, ItemMemory, MemorySuggestion } from '@/lib/moneyMemory';
+import { apiFetch } from '@/utils/apiFetch';
 
 interface MoneyMemoryCardProps {
   memories: Record<string, ItemMemory>;
@@ -287,7 +288,7 @@ export function useMoneyMemory(userId: string | null, items: string[], vendor?: 
       });
       if (vendor) params.set('vendor', vendor);
 
-      const response = await fetch(`/api/memory-suggestions?${params}`);
+      const response = await apiFetch(`/api/memory-suggestions?${params}`);
       if (!response.ok) throw new Error('Failed to fetch memories');
 
       const result = await response.json();

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { ACHIEVEMENTS, LEVELS, getAchievementProgress } from '@/lib/gamification';
+import { apiFetch } from '@/utils/apiFetch';
 
 interface Achievement {
   id: string;
@@ -46,7 +47,7 @@ export default function AchievementsGallery({ userId }: AchievementsGalleryProps
   const fetchGamificationData = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`/api/gamification?user_id=${userId}`);
+      const response = await apiFetch(`/api/gamification?user_id=${userId}`);
       if (!response.ok) throw new Error('Failed to fetch');
 
       const data = await response.json();

@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Navigation from '@/components/Navigation';
 import { supabase } from '@/utils/supabase';
+import { apiFetch } from '@/utils/apiFetch';
+import { getCurrentMileageRateDisplay } from '@/lib/irsRates';
 
 interface TaxReport {
   schedule_c_line: string | null;
@@ -67,7 +69,7 @@ export default function ReportsPage() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      const res = await fetch(`/api/exports/year-end?user_id=${user.id}&year=${year}`);
+      const res = await apiFetch(`/api/exports/year-end?user_id=${user.id}&year=${year}`);
       const data = await res.json();
 
       if (data.success) {
@@ -85,7 +87,7 @@ export default function ReportsPage() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
-    const res = await fetch(`/api/exports/year-end?user_id=${user.id}&year=${selectedYear}&format=csv`);
+    const res = await apiFetch(`/api/exports/year-end?user_id=${user.id}&year=${selectedYear}&format=csv`);
     const blob = await res.blob();
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -272,7 +274,7 @@ export default function ReportsPage() {
               <div className="bg-white rounded-xl shadow-lg border-2 border-gray-200">
                 <div className="px-6 py-5 border-b-2 border-gray-200 bg-gradient-to-r from-gray-50 to-white">
                   <h2 className="text-xl font-bold text-gray-900">Mileage Deductions</h2>
-                  <p className="text-sm text-gray-600 mt-1">IRS Standard Mileage Rate ($0.67/mile for 2025)</p>
+                  <p className="text-sm text-gray-600 mt-1">IRS Standard Mileage Rate ({getCurrentMileageRateDisplay()}/mile for {new Date().getFullYear()})</p>
                 </div>
                 <div className="p-6">
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -429,7 +431,7 @@ export default function ReportsPage() {
               <p className="mb-2">This software provides expense tracking tools designed to align with IRS Schedule C categories. <strong>This is not tax advice.</strong> MC Smart Bytes is not a licensed tax professional and is not responsible for tax filing decisions.</p>
               <ul className="list-disc list-inside space-y-1 text-amber-800">
                 <li>Tax laws change annually — we update our categories to reflect current IRS guidelines</li>
-                <li>The 2025 IRS standard mileage rate ($0.67/mile) is automatically applied</li>
+                <li>The {new Date().getFullYear()} IRS standard mileage rate ({getCurrentMileageRateDisplay()}/mile) is automatically applied</li>
                 <li>Always consult a licensed CPA or tax professional before filing</li>
                 <li>Keep all receipts and documentation for at least 3 years</li>
               </ul>

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Navigation from '@/components/Navigation';
+import { apiFetch } from '@/utils/apiFetch';
 import { supabase } from '@/utils/supabase';
 
 interface Project {
@@ -33,7 +34,7 @@ export default function ProjectsPage() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      const res = await fetch(`/api/projects?user_id=${user.id}`);
+      const res = await apiFetch(`/api/projects?user_id=${user.id}`);
       const data = await res.json();
 
       if (data.success) {

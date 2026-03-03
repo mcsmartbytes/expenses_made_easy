@@ -223,10 +223,14 @@ export default function ExpensesPage() {
         .select('id, name')
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        // jobs table may not exist yet — silently skip
+        setJobs([]);
+        return;
+      }
       setJobs(data || []);
-    } catch (error) {
-      console.error('Error loading jobs:', error);
+    } catch {
+      setJobs([]);
     }
   }
 
@@ -239,7 +243,11 @@ export default function ExpensesPage() {
         return;
       }
 
-      const { data, error } = await supabase
+      // Try full query with jobs join first; fall back without it if jobs table is missing
+      let data: any[] | null = null;
+      let hasJobsTable = true;
+
+      const { data: fullData, error: fullError } = await supabase
         .from('expenses')
         .select(
           `
@@ -261,12 +269,40 @@ export default function ExpensesPage() {
         .eq('user_id', user.id)
         .order('date', { ascending: false });
 
-      if (error) throw error;
+      if (fullError) {
+        // Likely the jobs table doesn't exist — retry without the join
+        hasJobsTable = false;
+        const { data: fallbackData, error: fallbackError } = await supabase
+          .from('expenses')
+          .select(
+            `
+              id,
+              amount,
+              description,
+              date,
+              vendor,
+              is_business,
+              payment_method,
+              notes,
+              category_id,
+              po_number,
+              job_id,
+              categories(name, icon, color)
+            `
+          )
+          .eq('user_id', user.id)
+          .order('date', { ascending: false });
+
+        if (fallbackError) throw fallbackError;
+        data = fallbackData;
+      } else {
+        data = fullData;
+      }
 
       const formattedExpenses: Expense[] = (data || []).map((exp: any) => ({
         ...exp,
         category: exp.categories || null,
-        job_name: exp.jobs?.name ?? null,
+        job_name: hasJobsTable ? (exp.jobs?.name ?? null) : null,
         po_number: exp.po_number ?? null,
       }));
 

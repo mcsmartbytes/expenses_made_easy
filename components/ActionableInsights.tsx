@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { apiFetch } from '@/utils/apiFetch';
 
 interface Insight {
   id: string;
@@ -118,7 +119,7 @@ export default function ActionableInsights({ userId, onCreateBudget }: Actionabl
   const fetchInsights = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`/api/insights?user_id=${userId}`);
+      const response = await apiFetch(`/api/insights?user_id=${userId}`);
       if (!response.ok) throw new Error('Failed to fetch');
       const data = await response.json();
       setInsights(data.insights || []);

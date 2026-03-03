@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { LineItem, formatPrice, formatQuantity, detectPriceChange } from '@/lib/lineItems';
 import { ItemMemory, MemorySuggestion } from '@/lib/moneyMemory';
+import { apiFetch } from '@/utils/apiFetch';
 
 interface PriceAlert {
   item_name: string;
@@ -48,7 +49,7 @@ export default function LineItemsEditor({
         const alerts = new Map<string, PriceAlert>();
 
         // Fetch price history for all items
-        const res = await fetch(`/api/price-history?user_id=${userId}&mode=history&limit=500`);
+        const res = await apiFetch(`/api/price-history?user_id=${userId}&mode=history&limit=500`);
         const data = await res.json();
 
         if (data.success && data.data) {
@@ -101,7 +102,7 @@ export default function LineItemsEditor({
           });
           if (vendor) memoryParams.set('vendor', vendor);
 
-          const memoryRes = await fetch(`/api/memory-suggestions?${memoryParams}`);
+          const memoryRes = await apiFetch(`/api/memory-suggestions?${memoryParams}`);
           const memoryResult = await memoryRes.json();
 
           if (memoryResult.success) {

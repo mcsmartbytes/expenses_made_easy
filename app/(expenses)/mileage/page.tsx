@@ -6,6 +6,7 @@ import Navigation from '@/components/Navigation';
 import { supabase } from '@/utils/supabase';
 import { nativeMileageTracker, TripData } from '@/utils/nativeMileageTracker';
 import { useUserMode } from '@/contexts/UserModeContext';
+import { getCurrentMileageRate, getCurrentMileageRateDisplay } from '@/lib/irsRates';
 
 interface MileageTrip {
   id: string;
@@ -21,7 +22,7 @@ interface MileageTrip {
 
 const IDLE_TIMEOUT_MS = 15 * 60 * 1000; // 15 minutes
 const MIN_ACCURACY_METERS = 100; // Ignore GPS readings with accuracy worse than 100m (was 50m - too strict for mobile)
-const MIN_SPEED_MPH = 5; // Auto-start threshold
+const DEFAULT_MIN_SPEED_MPH = 5; // Default auto-start threshold
 
 export default function MileagePage() {
   const { isBusiness: defaultIsBusiness } = useUserMode();
@@ -33,9 +34,11 @@ export default function MileagePage() {
   const [startLocation, setStartLocation] = useState('');
   const [purpose, setPurpose] = useState('');
   const [isBusiness, setIsBusiness] = useState(defaultIsBusiness);
-  const [rate, setRate] = useState(0.67);
+  const [rate, setRate] = useState(getCurrentMileageRate());
   const [idleTime, setIdleTime] = useState(0); // seconds idle
   const [isNativeMode, setIsNativeMode] = useState(false); // Track if using native Capacitor
+  const [minSpeedMph, setMinSpeedMph] = useState(DEFAULT_MIN_SPEED_MPH);
+  const [showTip, setShowTip] = useState(true);
 
   const [typeFilter, setTypeFilter] = useState<'all' | 'business' | 'personal'>('all');
   const [dateFilter, setDateFilter] = useState<'all' | 'month' | 'quarter' | 'year'>('all');
@@ -55,10 +58,16 @@ export default function MileagePage() {
   const startLocationRef = useRef('');
   const purposeRef = useRef('');
   const isBusinessRef = useRef(true);
+  const minSpeedMphRef = useRef(DEFAULT_MIN_SPEED_MPH);
 
   useEffect(() => {
     loadTrips();
+    loadUserPreferences();
     initializeTracking();
+    // Restore tip dismiss state
+    if (typeof window !== 'undefined' && localStorage.getItem('mileage_tip_dismissed') === '1') {
+      setShowTip(false);
+    }
     return () => {
       if (watchIdRef.current !== null) navigator.geolocation.clearWatch(watchIdRef.current);
       if (idleCheckIntervalRef.current) clearInterval(idleCheckIntervalRef.current);
@@ -152,6 +161,28 @@ export default function MileagePage() {
     }
   }
 
+  async function loadUserPreferences() {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data: profile } = await supabase
+        .from('user_profiles')
+        .select('preferences')
+        .eq('user_id', user.id)
+        .single();
+      if (profile?.preferences?.mileage_auto_start_speed) {
+        const speed = Number(profile.preferences.mileage_auto_start_speed);
+        if (speed > 0) {
+          setMinSpeedMph(speed);
+          minSpeedMphRef.current = speed;
+          nativeMileageTracker.setAutoStartSpeed(speed);
+        }
+      }
+    } catch (error) {
+      console.error('Error loading user preferences:', error);
+    }
+  }
+
   function applyFilters() {
     let filtered = [...trips];
     if (typeFilter === 'business') filtered = filtered.filter(t => t.is_business);
@@ -167,7 +198,7 @@ export default function MileagePage() {
   const totalAmount = filteredTrips.reduce((sum, t) => sum + t.amount, 0);
   const businessMiles = filteredTrips.filter(t => t.is_business).reduce((sum, t) => sum + t.distance, 0);
   const personalMiles = filteredTrips.filter(t => !t.is_business).reduce((sum, t) => sum + t.distance, 0);
-  const taxDeduction = businessMiles * 0.67; // 2024 IRS rate
+  const taxDeduction = filteredTrips.filter(t => t.is_business).reduce((sum, t) => sum + t.distance * (t.rate || getCurrentMileageRate()), 0);
 
   function startSpeedMonitoring() {
     if (!navigator.geolocation) { alert('Geolocation is not supported by your browser'); return; }
@@ -193,7 +224,7 @@ export default function MileagePage() {
         setCurrentSpeed(speedMph);
 
         // Auto-start when driving (check this regardless of accuracy)
-        if (speedMph >= MIN_SPEED_MPH && !isTrackingRef.current && !autoStartTriggered.current) {
+        if (speedMph >= minSpeedMphRef.current && !isTrackingRef.current && !autoStartTriggered.current) {
           autoStartTriggered.current = true;
           handleStartTracking(latitude, longitude);
         }
@@ -465,6 +496,30 @@ export default function MileagePage() {
       <main className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
         <h1 className="text-3xl font-bold text-gray-900 mb-8">Mileage Tracker</h1>
 
+        {/* How It Works Tip Card */}
+        {showTip && (
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6 relative">
+            <button
+              onClick={() => { setShowTip(false); localStorage.setItem('mileage_tip_dismissed', '1'); }}
+              className="absolute top-2 right-2 text-blue-400 hover:text-blue-600 text-lg leading-none"
+              aria-label="Dismiss tip"
+            >
+              &times;
+            </button>
+            <h3 className="text-sm font-semibold text-blue-900 mb-2">How Mileage Tracking Works</h3>
+            <ul className="text-sm text-blue-800 space-y-1 list-disc list-inside">
+              <li><strong>Auto-start:</strong> Tracking begins when your speed exceeds {minSpeedMph} mph</li>
+              <li><strong>Keep the page open</strong> (web) or use the native app for background tracking</li>
+              <li><strong>Auto-save:</strong> Trips save automatically after 15 min of no movement</li>
+              <li><strong>Edit anytime:</strong> Change purpose, type, or details on any saved trip</li>
+              <li><strong>IRS rate:</strong> {getCurrentMileageRateDisplay()}/mile ({new Date().getFullYear()}) applied automatically</li>
+            </ul>
+            <p className="text-xs text-blue-600 mt-2">
+              <Link href="/settings" className="underline hover:text-blue-800">Change auto-start speed in Settings</Link>
+            </p>
+          </div>
+        )}
+
         <div className="bg-white rounded-lg shadow p-6 mb-6">
           <div className="flex items-center justify-between mb-4">
             <div>
@@ -480,7 +535,10 @@ export default function MileagePage() {
                   </span>
                 )}
               </div>
-              <p className="text-sm text-gray-600">Automatically starts when you drive over 5 mph</p>
+              <p className="text-sm text-gray-600">
+                Automatically starts when you drive over {minSpeedMph} mph
+                <Link href="/settings" className="ml-2 text-blue-500 hover:text-blue-700 text-xs">(change)</Link>
+              </p>
               <p className="text-xs text-gray-400 mt-1">
                 {isNativeMode
                   ? 'Tracks in background - no need to keep app open'
@@ -529,7 +587,7 @@ export default function MileagePage() {
                   <h3 className="text-lg font-bold">Tax Deduction Tracker</h3>
                 </div>
                 <p className="text-emerald-100 text-sm">
-                  Your {businessMiles.toFixed(1)} business miles = <span className="font-bold text-white">${taxDeduction.toFixed(2)}</span> in tax deductions at $0.67/mile (2024 IRS rate)
+                  Your {businessMiles.toFixed(1)} business miles = <span className="font-bold text-white">${taxDeduction.toFixed(2)}</span> in tax deductions at {getCurrentMileageRateDisplay()}/mile ({new Date().getFullYear()} IRS rate)
                 </p>
               </div>
               <div className="text-right">
@@ -543,7 +601,7 @@ export default function MileagePage() {
                 <p className="text-xs text-emerald-200">Business Miles</p>
               </div>
               <div className="text-center">
-                <p className="text-2xl font-bold">$0.67</p>
+                <p className="text-2xl font-bold">{getCurrentMileageRateDisplay()}</p>
                 <p className="text-xs text-emerald-200">Per Mile Rate</p>
               </div>
               <div className="text-center">
@@ -585,7 +643,7 @@ export default function MileagePage() {
               </thead>
               <tbody>
                 {filteredTrips.map((t, idx) => {
-                  const tripDeduction = t.is_business ? t.distance * 0.67 : 0;
+                  const tripDeduction = t.is_business ? t.distance * (t.rate || getCurrentMileageRate()) : 0;
                   return (
                     <tr key={t.id} className={`border-t ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/40'}`}>
                       <td className="px-4 py-2">{new Date(t.date).toLocaleDateString()}</td>
@@ -687,7 +745,7 @@ export default function MileagePage() {
                 </label>
                 {editIsBusiness && (
                   <p className="text-xs text-emerald-600 mt-1">
-                    Tax deduction: ${(editingTrip.distance * 0.67).toFixed(2)}
+                    Tax deduction: ${(editingTrip.distance * (editingTrip.rate || getCurrentMileageRate())).toFixed(2)}
                   </p>
                 )}
               </div>

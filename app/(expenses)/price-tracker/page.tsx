@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Navigation from '@/components/Navigation';
+import { apiFetch } from '@/utils/apiFetch';
 import { supabase } from '@/utils/supabase';
 
 interface PriceTrend {
@@ -128,7 +129,7 @@ export default function PriceTrackerPage() {
       }
 
       // Load trends
-      const trendsRes = await fetch(`/api/price-history?user_id=${user.id}&mode=trends`);
+      const trendsRes = await apiFetch(`/api/price-history?user_id=${user.id}&mode=trends`);
       const trendsData = await trendsRes.json();
 
       if (trendsData.success) {
@@ -138,7 +139,7 @@ export default function PriceTrackerPage() {
       }
 
       // Load alerts
-      const alertsRes = await fetch(`/api/price-history?user_id=${user.id}&mode=alerts`);
+      const alertsRes = await apiFetch(`/api/price-history?user_id=${user.id}&mode=alerts`);
       const alertsData = await alertsRes.json();
 
       if (alertsData.success) {
@@ -159,7 +160,7 @@ export default function PriceTrackerPage() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      const res = await fetch(`/api/price-history?user_id=${user.id}&mode=vendor-comparison`);
+      const res = await apiFetch(`/api/price-history?user_id=${user.id}&mode=vendor-comparison`);
       const data = await res.json();
 
       if (data.success) {
@@ -185,7 +186,7 @@ export default function PriceTrackerPage() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      const res = await fetch(`/api/price-history?user_id=${user.id}&item_name=${encodeURIComponent(itemName)}&mode=history`);
+      const res = await apiFetch(`/api/price-history?user_id=${user.id}&item_name=${encodeURIComponent(itemName)}&mode=history`);
       const data = await res.json();
 
       if (data.success) {
