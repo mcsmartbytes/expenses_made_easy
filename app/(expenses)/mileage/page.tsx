@@ -265,8 +265,10 @@ export default function MileagePage() {
         {filteredTrips.length === 0 ? (
           <div className="bg-white rounded-lg shadow p-6 text-sm text-gray-500">No trips yet</div>
         ) : (
-          <div className="bg-white rounded-lg shadow overflow-x-auto">
-            <table className="w-full text-sm">
+          <>
+          <p className="text-xs text-gray-400 mb-1 md:hidden">Swipe left to see more columns &rarr;</p>
+          <div className="bg-white rounded-lg shadow overflow-x-auto [&::-webkit-scrollbar]:h-2 [&::-webkit-scrollbar-thumb]:bg-gray-300 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-gray-100" style={{ WebkitOverflowScrolling: 'touch' }}>
+            <table className="w-full text-sm min-w-[700px]">
               <thead className="bg-gray-50 border-b">
                 <tr>
                   <th className="px-4 py-2 text-left text-gray-600 font-medium">Date</th>
@@ -331,6 +333,7 @@ export default function MileagePage() {
               </tbody>
             </table>
           </div>
+          </>
         )}
 
         <div className="mt-6 flex items-center gap-4">
