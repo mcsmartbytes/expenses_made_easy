@@ -87,6 +87,7 @@ class NativeMileageTracker {
   };
 
   private callbacks: MileageTrackerCallbacks | null = null;
+  private initialized = false;
   private watcherId: string | null = null;
   private idleCheckInterval: ReturnType<typeof setInterval> | null = null;
   private autoStartEnabled: boolean = true;
@@ -170,6 +171,11 @@ class NativeMileageTracker {
   async initialize(callbacks: MileageTrackerCallbacks): Promise<boolean> {
     this.callbacks = callbacks;
 
+    // If already initialized, just update callbacks and return current state
+    if (this.initialized) {
+      return this.isNativePlatform;
+    }
+
     // Check if we're in a browser environment first
     if (typeof window === 'undefined') {
       return false;
@@ -196,6 +202,7 @@ class NativeMileageTracker {
 
       // Start watching for location updates (for speed detection and auto-start)
       await this.startBackgroundWatcher();
+      this.initialized = true;
 
       // Check for a trip that was in progress before crash/reload
       const restored = this.restoreState();

@@ -1,6 +1,7 @@
 import './globals.css'
 import type { Metadata, Viewport } from 'next'
 import InstallPrompt from '@/components/InstallPrompt'
+import MileageTrackingIndicator from '@/components/MileageTrackingIndicator'
 import Providers from '@/components/Providers'
 
 export const metadata: Metadata = {
@@ -49,6 +50,7 @@ export default function RootLayout({
       <body>
         <Providers>
           {children}
+          <MileageTrackingIndicator />
           <InstallPrompt />
         </Providers>
         <script
